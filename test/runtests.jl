@@ -1,5 +1,7 @@
 using MatrixProfile
-using Test, Statistics
+using Test, Statistics, LinearAlgebra, Plots
+
+using MatrixProfile: znorm
 
 @testset "MatrixProfile.jl" begin
 
@@ -20,8 +22,9 @@ using Test, Statistics
 
    T = [randn(50); y0; randn(50); y0; randn(50)]
 
-   P,I = stomp(T, length(y0))
-
+   profile = matrix_profile(T, length(y0))
+   P,I = profile.P, profile.I
+   @test_nowarn plot(profile)
    # plot(T, layout=2)
    # plot!(P, sp=2)
 
@@ -29,21 +32,36 @@ using Test, Statistics
    @test m[1] < 1e-6
    @test m[2] == 51 || m[2] == 112
 
-   # @btime stomp($randn(Float32, 10_000), 20)
-   # @profiler stomp(randn(10_000), 20)
+   Q = randn(5)
+   T = [randn(5); Q; randn(5)]
+   D = MatrixProfile.distance_profile(Q,T)
+   @test D[6] < 1e-6
+   @test D[1] ≈ norm(znorm(Q) - znorm(T[1:5]))
 
-
-   # Q = randn(5)
-   # T = randn(10)
-   # d1 = DynamicAxisWarping.window_dot(Q,T)
-   # d2 = DynamicAxisWarping.window_dot2(Q,T)
-   # d3 = DynamicAxisWarping.window_dot3(Q,T)
-   # [d1 d2 d3]
+   @time MatrixProfile.matrix_profile(randn(Float32, 2^15), 256)
 
 
 
+   @testset "Motifs" begin
+       @info "Testing Motifs"
+       @time mot = MatrixProfile.motifs(profile, 2, 2, 5)
+       @test mot[1].onsets == [51, 112]
+       @test_nowarn plot(profile, mot)
+   end
+
+ end
 
 
-   @time MatrixProfile.stomp(randn(Float32, 2^15), 256)
 
-end
+
+
+
+# Benchmark
+# @btime matrix_profile($randn(Float32, 10_000), 20)
+# @profiler matrix_profile(randn(10_000), 20)
+# Q = randn(5)
+# T = randn(10)
+# d1 = DynamicAxisWarping.window_dot(Q,T)
+# d2 = DynamicAxisWarping.window_dot2(Q,T)
+# d3 = DynamicAxisWarping.window_dot3(Q,T)
+# [d1 d2 d3]
