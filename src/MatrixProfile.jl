@@ -64,12 +64,10 @@ end
 Input: A query Q, and a user provided time series T
 Output: The dot product between Q and all subsequences in T
 """
-function window_dot(Q, T::AbstractArray{S}) where S
+function window_dot(Q, T)
     n   = length(T)
     m   = length(Q)
-    Qr  = reverse(Q)
-    Qra = Qr
-    QT  = conv(Qr, T)
+    QT  = conv(reverse(Q), T)
     return QT[m:n]
 end
 # function window_dot(Q, T::AbstractArray{S}) where S
@@ -92,7 +90,7 @@ function running_mean_std(x::AbstractArray{T}, m) where T
     μ = similar(x, n)
     σ = similar(x, n)
     @inbounds for i = 1:m
-        s += x[i]
+        s  += x[i]
         ss += x[i]^2
     end
     μ[1] = s/m
