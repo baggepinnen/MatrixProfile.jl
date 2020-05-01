@@ -16,8 +16,14 @@ plot(T, layout=(2,1), title="T", legend=false, link=:x)
 plot!(P, sp=2, title="Matrix profile", legend=false) # Should have minima at 21 and 52
 ```
 ![matrix_profile](mp.svg)
-The matrix profile have two sharp minima at the onset of the repeated pattern. The parameter `window_length` determines how long pattern to search for.
 
+The matrix profile have two sharp minima at the onsets of the repeated pattern. The parameter `window_length` determines how long pattern to search for.
+
+## Runtime
 `stomp` benefits greatly in speed from the use of `Flaot32` instead of `Float64`. The computational time scales as the square of the length of `T`, but is invariant to the window length. Calculating the matrix profile of `2^17 ≈ 100k` points takes about a minute on a laptop.
 
-Reference: [Matrix profile II](https://www.cs.ucr.edu/~eamonn/STOMP_GPU_final_submission_camera_ready.pdf).
+## Clustering
+This is not implemented yet, but a common technique is to find the two time windows that are closest to each other, and group them together with all points within a small factor, say 2, of the distance between them. This group the makes up a motif. This can be done recursively after having removed the first motif in order to find more of them.
+
+## References
+The `stomp` algorithm is detailed in the paper [Matrix profile II](https://www.cs.ucr.edu/~eamonn/STOMP_GPU_final_submission_camera_ready.pdf).
