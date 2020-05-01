@@ -30,7 +30,7 @@ mot = motifs(profile, k, r, th)
 plot(profile, mot)
 ```
 - `k` is the number of motifs to extract
-- `r` controls how nearby two windows must be to belong to the same motif.
+- `r` controls how similar two windows must be to belong to the same motif. A higher value leads to more windows being grouped together.
 - `th` is a threshold on how far nearby in time two motifs are allowed to be.
 ![motif_plot](figures/motifs.svg)
 

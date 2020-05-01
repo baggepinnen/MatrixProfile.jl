@@ -95,18 +95,6 @@ function window_dot(Q, T)
     QT  = conv(reverse(Q), T)
     return QT[m:n]
 end
-# function window_dot(Q, T::AbstractArray{S}) where S
-#     n    = length(T)
-#     m    = length(Q)
-#     Ta   = [T; zeros(S,n)]
-#     Qr   = reverse(Q)
-#     Qra  = [Qr; zeros(S,2n-m)]
-#     Qraf = rfft(Qra)
-#     Taf  = rfft(Ta)
-#     QT   = irfft(Qraf .* Taf, length(Qra))
-#     return QT[m:n]
-# end
-
 
 function running_mean_std(x::AbstractArray{T}, m) where T
     @assert length(x) > m
@@ -175,12 +163,6 @@ function znorm(x)
     x ./= std(x, mean=0, corrected=false)
 end
 
-function dist(p::Profile, i, j)
-    inds = 0:p.m-1
-    sum(abs2, znorm(p.T[i .+ inds]) - znorm(p.T[j .+ inds]))
-end
-
-
 @recipe function plot(p::Profile)
     link --> :x
     layout --> (2,1)
@@ -217,7 +199,6 @@ _append_inf(x) = vec([x; fill(Inf, 1, size(x,2))])
             _append_inf(m.onsets' .+ inds), _append_inf(reduce(hcat, m.motifs))
         end
     end
-
 end
 
 end

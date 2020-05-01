@@ -38,13 +38,13 @@ using MatrixProfile: znorm
    @test D[6] < 1e-6
    @test D[1] ≈ norm(znorm(Q) - znorm(T[1:5]))
 
-   @time MatrixProfile.matrix_profile(randn(Float32, 2^15), 256)
+   @time matrix_profile(randn(Float32, 2^15), 256)
 
 
 
    @testset "Motifs" begin
        @info "Testing Motifs"
-       @time mot = MatrixProfile.motifs(profile, 2, 2, 5)
+       @time mot = motifs(profile, 2, 2, 5)
        @test mot[1].onsets == [51, 112]
        @test_nowarn plot(profile, mot)
    end
