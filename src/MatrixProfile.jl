@@ -2,27 +2,29 @@ module MatrixProfile
 using Statistics
 using DSP
 using LoopVectorization
+using ProgressMeter
 
 export stomp
 
 
 """
-    P,I = stomp(T, m)
+    P,I = stomp(T, m; showprogress=true)
 
 Return the matrix profile and the profile indices of time series `T` with window length `m`.
 
 Reference: [Matrix profile II](https://www.cs.ucr.edu/~eamonn/STOMP_GPU_final_submission_camera_ready.pdf).
 """
-function stomp(T, m)
+function stomp(T, m; showprogress=true)
     n   = length(T)
     l   = n-m+1
     n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $(2m)"))
-    μ,σ = running_mean_std(T, m)
-    QT  = window_dot(view(T, 1:m), T)
-    QT₀ = copy(QT)
-    D   = distance_profile(QT, μ, σ, m)
-    P   = copy(D)
-    I   = ones(Int, l)
+    μ,σ  = running_mean_std(T, m)
+    QT   = window_dot(view(T, 1:m), T)
+    QT₀  = copy(QT)
+    D    = distance_profile(QT, μ, σ, m)
+    P    = copy(D)
+    I    = ones(Int, l)
+    prog = Progress((l - 1) ÷ 10, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
     @inbounds for i = 2:l
         for j = l:-1:2
             @fastmath QT[j] = QT[j-1]-T[j-1]*T[i-1]+T[j+m-1]*T[i+m-1]
@@ -30,6 +32,7 @@ function stomp(T, m)
         QT[1] = QT₀[i]
         distance_profile!(D, QT, μ, σ, m, i)
         update_min!(P, I, D, i)
+        showprogress && i % 10 == 0 && next!(prog)
     end
     P, I
 end

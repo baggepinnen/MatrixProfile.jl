@@ -44,6 +44,6 @@ using Test, Statistics
 
 
 
-   # @time stomp(randn(Float32, 2^17), 256)
+   @time MatrixProfile.stomp(randn(Float32, 2^15), 256)
 
 end
