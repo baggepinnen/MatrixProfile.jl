@@ -18,7 +18,9 @@ _append_inf(x) = vec([x; fill(Inf, 1, size(x,2))])
 end
 
 
-@recipe function plot(p::Profile, motifs::Vector{Motif})
+@recipe function plot(p::Profile, motifs::Union{Vector{Motif}, Motif})
+
+    motifs isa Vector || (motifs = [motifs])
 
     @series begin
         p

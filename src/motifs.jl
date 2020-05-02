@@ -11,7 +11,8 @@ function motifs(p::Profile, k, r, th = 0, found_motifs = Motif[])
     d, i = findmin(P)
     distance_profile!(P, getwindow(p.T, m, i), p.T)
     remove_found_motifs!(P, found_motifs, th)
-    onsets = findall(<=(d * r), P)
+    onsets = findall(<=((d + sqrt(eps()))*r), P)
+    onsets = sort!(unique(push!(onsets, i)))
     push!(found_motifs, Motif(p, onsets))
     motifs(p::Profile, k, r, th, found_motifs)
 end
@@ -33,4 +34,10 @@ function remove_found_motifs!(P, found_motifs, th)
             P[inds] .= typemax(eltype(P))
         end
     end
+end
+
+
+function anomalies(p::Profile, k)
+    onsets = partialsortperm(p.P, 1:k, rev=true)
+    Motif(p, copy(onsets))
 end

@@ -8,7 +8,7 @@ using RecipesBase
 using SlidingDistancesBase
 import SlidingDistancesBase: floattype, lastlength, distance_profile, distance_profile!
 
-export matrix_profile, distance_profile, motifs
+export matrix_profile, distance_profile, motifs, anomalies
 
 
 struct Profile{TT,TP}

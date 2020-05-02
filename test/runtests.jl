@@ -24,7 +24,6 @@ using MatrixProfile: znorm
 
    t = range(0, stop=1, step=1/10)
    y0 = sin.(2pi .* t)
-
    T = [randn(50); y0; randn(50); y0; randn(50)]
 
    profile = matrix_profile(T, length(y0))
@@ -64,6 +63,10 @@ using MatrixProfile: znorm
        @time mot = motifs(profile, 2, 2, 5)
        @test mot[1].onsets == [51, 112]
        @test_nowarn plot(profile, mot)
+
+       an = MatrixProfile.anomalies(profile, 3)
+       @test length(an.motifs) == length(an.onsets) == 3
+       @test an.onsets[1] == argmax(profile.P)
    end
 
 
