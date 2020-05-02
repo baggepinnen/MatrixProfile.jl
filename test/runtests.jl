@@ -24,6 +24,16 @@ normdist = (x,y)->norm(znorm(x)-znorm(y))
 
     end
 
+    @testset "distance profile" begin
+        @info "Testing distance profile"
+
+       Q = randn(5)
+       T = [randn(5); Q; randn(5)]
+       D = MatrixProfile.distance_profile(Q,T)
+       @test D[6] < 1e-6
+       @test D[1] ≈ norm(znorm(Q) - znorm(T[1:5]))
+    end
+
    t = range(0, stop=1, step=1/10)
    y0 = sin.(2pi .* t)
    T = [randn(50); y0; randn(50); y0; randn(50)]
@@ -71,14 +81,6 @@ normdist = (x,y)->norm(znorm(x)-znorm(y))
 
 
 
-   Q = randn(5)
-   T = [randn(5); Q; randn(5)]
-   D = MatrixProfile.distance_profile(Q,T)
-   @test D[6] < 1e-6
-   @test D[1] ≈ norm(znorm(Q) - znorm(T[1:5]))
-
-   @time matrix_profile(randn(Float32, 2^15), 256)
-
 
 
    @testset "Motifs" begin
@@ -94,6 +96,7 @@ normdist = (x,y)->norm(znorm(x)-znorm(y))
 
 
 
+   @time matrix_profile(randn(Float32, 2^15), 256)
 
 
 
