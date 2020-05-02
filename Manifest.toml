@@ -385,7 +385,10 @@ uuid = "992d4aef-0814-514b-bc4d-f2e9a6c4116f"
 version = "0.3.1"
 
 [[SlidingDistancesBase]]
-path = "/home/fredrikb/.julia/dev/SlidingDistancesBase"
+deps = ["UnsafeArrays"]
+git-tree-sha1 = "ce3312febbc7ad6fa751896a4d8f6f9f50a584e2"
+repo-rev = "master"
+repo-url = "https://github.com/baggepinnen/SlidingDistancesBase.jl"
 uuid = "25b0cc0c-38e4-462f-a11d-8564868c562d"
 version = "0.1.0"
 
@@ -445,6 +448,11 @@ version = "0.1.0"
 
 [[Unicode]]
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
+
+[[UnsafeArrays]]
+git-tree-sha1 = "9740b414f85ec2fa9135066f81b1fb14212befd6"
+uuid = "c4a57d5a-5b31-53a6-b365-19f8c011fbd6"
+version = "1.0.1"
 
 [[VectorizationBase]]
 deps = ["CpuId", "LinearAlgebra"]
