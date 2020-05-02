@@ -11,12 +11,12 @@ import SlidingDistancesBase: floattype, lastlength, distance_profile, distance_p
 export matrix_profile, distance_profile, motifs, anomalies
 
 
-struct Profile{TT,TP,BT}
+struct Profile{TT,TP,QT}
     T::TT
     P::TP
     I::Vector{Int}
     m::Int
-    B::BT
+    Q::QT
 end
 
 """
@@ -211,7 +211,7 @@ function matrix_profile(A::AbstractArray{S}, B::AbstractArray{S}, m::Int, dist; 
         update_min!(P, I, D, i, false)
         showprogress && i % 10 == 0 && next!(prog)
     end
-    Profile(A, P, I, m, B)
+    Profile(B, P, I, m, A)
 end
 
 
