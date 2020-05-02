@@ -124,7 +124,8 @@ normdist = (x,y)->norm(znorm(x)-znorm(y))
 
 
 # Eval precision
-# a = randn(Float64, 200_000)
+# a = randn(Float64, 50_000)
 # p1 = matrix_profile(a,  20)
 # p2 = matrix_profile(Float32.(a),  20)
+# @show mean(abs.(p1.P - p2.P)./p1.P)
 # plot(abs.(p1.P - p2.P)./p1.P)

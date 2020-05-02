@@ -39,7 +39,9 @@ function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true)
     prog = Progress((l - 1) ÷ 10, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
     @inbounds for i = 2:l
         for j = l:-1:2
-            QT[j] = QT[j-1] - T[j-1] * T[i-1] + T[j+m-1] * T[i+m-1] # Consider updating to eqs. 3-7 https://www.cs.ucr.edu/~eamonn/SCAMP-camera-ready-final1.pdf
+            @fastmath QT[j] = QT[j-1] - T[j-1] * T[i-1] + T[j+m-1] * T[i+m-1] # Consider updating to eqs. 3-7 https://www.cs.ucr.edu/~eamonn/SCAMP-camera-ready-final1.pdf
+            # QT[j] = muladd(-T[j-1], T[i-1],  muladd(T[j+m-1], T[i+m-1], QT[j-1]))
+            # The expression with fastmath appears to be both more accurate and faster than both muladd and fma
         end
         QT[1] = QT₀[i]
         distance_profile!(D, QT, μ, σ, m, i)
@@ -65,7 +67,7 @@ function matrix_profile(A::AbstractVector{<:Number}, T::AbstractVector{<:Number}
     prog = Progress((l - 1) ÷ 10, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
     @inbounds for i = 2:l
         for j = lT:-1:2
-            QT[j] = QT[j-1] - T[j-1] * A[i-1] + T[j+m-1] * A[i+m-1]
+            @fastmath QT[j] = QT[j-1] - T[j-1] * A[i-1] + T[j+m-1] * A[i+m-1]
         end
         # QT[1] = QT₀[i]
         distance_profile!(D, QT, μA, σA, μT, σT, m, i)
@@ -134,13 +136,13 @@ function running_mean_std(x::AbstractArray{T}, m) where T
     s = ss = zero(T)
     μ = similar(x, n)
     σ = similar(x, n)
-    @inbounds for i = 1:m
+    @fastmath @inbounds for i = 1:m
         s  += x[i]
         ss += x[i]^2
     end
     μ[1] = s/m
     σ[1] = sqrt(ss/m - μ[1]^2)
-    @inbounds for i = 1:n-1
+    @fastmath @inbounds for i = 1:n-1 # fastmath making it more accurate here as well, but not faster
         s -= x[i]
         ss -= x[i]^2
         s += x[i+m]
