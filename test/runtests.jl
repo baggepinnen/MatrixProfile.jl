@@ -118,3 +118,10 @@ normdist = (x,y)->norm(znorm(x)-znorm(y))
 # d2 = DynamicAxisWarping.window_dot2(Q,T)
 # d3 = DynamicAxisWarping.window_dot3(Q,T)
 # [d1 d2 d3]
+
+
+# Eval precision
+# a = randn(Float64, 200_000)
+# p1 = matrix_profile(a,  20)
+# p2 = matrix_profile(Float32.(a),  20)
+# plot(abs.(p1.P - p2.P)./p1.P)

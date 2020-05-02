@@ -39,7 +39,7 @@ function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true)
     prog = Progress((l - 1) ÷ 10, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
     @inbounds for i = 2:l
         for j = l:-1:2
-            QT[j] = QT[j-1] - T[j-1] * T[i-1] + T[j+m-1] * T[i+m-1]
+            QT[j] = QT[j-1] - T[j-1] * T[i-1] + T[j+m-1] * T[i+m-1] # Consider updating to eqs. 3-7 https://www.cs.ucr.edu/~eamonn/SCAMP-camera-ready-final1.pdf
         end
         QT[1] = QT₀[i]
         distance_profile!(D, QT, μ, σ, m, i)

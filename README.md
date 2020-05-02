@@ -5,6 +5,15 @@
 
 Time-series analysis using the matrix profile. The matrix profile `P` tells you which sub-sequences of a time series `T` are similar to each other, and which are most dissimilar from all other. This will allow you to find repeated patterns, or *motifs*, as well as finding outliers.
 
+
+### Installation
+This package is not yet registered. Install with
+```julia
+using Pkg
+pkg"add https://github.com/baggepinnen/SlidingDistancesBase.jl#master https://github.com/baggepinnen/MatrixProfile.jl"
+```
+
+## Usage
 The function `matrix_profile` returns the matrix profile and profile indices. Here's an example where we insert a repeated pattern in an otherwise random time series.
 ```julia
 using MatrixProfile, Plots
