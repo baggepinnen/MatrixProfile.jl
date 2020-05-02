@@ -3,6 +3,8 @@ using Test, Statistics, LinearAlgebra, Plots
 
 using MatrixProfile: znorm
 
+normdist = (x,y)->norm(znorm(x)-znorm(y))
+
 @testset "MatrixProfile.jl" begin
 
 
@@ -37,14 +39,33 @@ using MatrixProfile: znorm
    @test m[2] == 51 || m[2] == 112
 
 
+   # Test Euclidean between two series
+   profile3 = matrix_profile(T, T, length(y0))
+   @test all(profile3.P .< 1e-6)
+
+
+   profile5 = matrix_profile(T[1:end÷2], T, length(y0))
+   @test sum(profile5.P[1:length(T)÷2-length(y0)]) < 1e-5
+   profile6 = matrix_profile(T, T[1:end÷2], length(y0))
+   @test sum(profile6.P) < 1e-5
+
+
    @testset "Generic matrix profile" begin
        @info "Testing Generic matrix profile"
 
-       profile2 = matrix_profile(T, length(y0), (x,y)->norm(znorm(x)-znorm(y)))
+       # Test generic one serie
+       profile2 = matrix_profile(T, length(y0), normdist)
        @test profile2.P ≈  profile.P
        @test all(eachindex(profile.I)) do i
            profile2.I[i] ∈ (51,112) || profile2.I[i] == profile.I[i]
        end
+
+
+
+       # Test generic between two series
+       profile4 = matrix_profile(T, T, length(y0), normdist)
+       @test all(profile4.P .< 1e-6)
+
 
    end
 
@@ -84,7 +105,12 @@ using MatrixProfile: znorm
 
 
 # Benchmark
-# @btime matrix_profile($randn(Float32, 10_000), 20)
+# @btime matrix_profile($(randn(Float32, 10_000)), 20)
+#
+# @time matrix_profile((randn(Float32, 100_000)),  20)
+#
+# @time matrix_profile((randn(Float32, 10_000)), (randn(Float32, 1_000)), 20, (x,y)->norm(x-y))
+#
 # @profiler matrix_profile(randn(10_000), 20)
 # Q = randn(5)
 # T = randn(10)

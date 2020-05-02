@@ -19,8 +19,17 @@ plot(profile) # Should have minima at 21 and 52
 
 The matrix profile have two sharp minima at the onsets of the repeated pattern. The parameter `window_length` determines how long pattern to search for.
 
+### Analysis across different time-series
+If called like
+```julia
+profile = matrix_profile(A, B, m, [dist])
+```
+consecutive windows of `A` will be compared to the entire `B`. The resulting matrix profile will indicate with small values when a window of `A` appeared in `B`, and with large values when a window in `A` were very different from `B`. This is not a symmetric function, in general, `matrix_profile(A, B) != matrix_profile(B, A)`.
+
 ### Runtime
-`matrix_profile` benefits greatly in speed from the use of `Float32` instead of `Float64`. The computational time scales as the square of the length of `T`, but is invariant to the window length. Calculating the matrix profile of `2^17 ≈ 100k` points takes about a minute on a laptop.
+`matrix_profile` benefits greatly in speed from the use of `Float32` instead of `Float64`. The computational time scales as the square of the length of `T`, but is invariant to the window length. Calculating the matrix profile of `2^17 ≈ 100k` points takes less than minute on a laptop.
+
+If `dist` is provided, a generic (slow) method is used. If `dist` is not provided and the inputs `A,B` are one dimensional vectors of numbers, a fast method is used. The fast method handles long time series, `length(A) = length(B) = 100k` takes less than 30s.
 
 ## Motif grouping
 Using the fake data from the example above, we can do
@@ -34,7 +43,7 @@ plot(profile, mot)
 - `th` is a threshold on how far nearby in time two motifs are allowed to be.
 ![motif_plot](figures/motifs.svg)
 
-Also see the function `anomalies(profile)` to find anomalies in the data, sometimes called *discords*. 
+Also see the function `anomalies(profile)` to find anomalies in the data, sometimes called *discords*.
 
 
 ## Arbitrary metrics and input types

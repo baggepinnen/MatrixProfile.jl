@@ -11,11 +11,12 @@ import SlidingDistancesBase: floattype, lastlength, distance_profile, distance_p
 export matrix_profile, distance_profile, motifs, anomalies
 
 
-struct Profile{TT,TP}
+struct Profile{TT,TP,BT}
     T::TT
     P::TP
     I::Vector{Int}
     m::Int
+    B::BT
 end
 
 """
@@ -45,25 +46,35 @@ function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true)
         update_min!(P, I, D, i)
         showprogress && i % 10 == 0 && next!(prog)
     end
-    Profile(T, P, I, m)
+    Profile(T, P, I, m, nothing)
 end
 
-"""
-    distance_profile(Q, T)
 
-Compute the Euclidean distance profile corresponding to sliding `Q` over `T`
-"""
-function distance_profile!(D::AbstractVector{S}, Q::AbstractVector{S}, T::AbstractVector{S}) where S <: Number
-    m = length(Q)
-    μ,σ  = running_mean_std(T, m)
-    QT   = window_dot(znorm(Q), T)
-    @avx for j = eachindex(D)
-        frac = QT[j] / (m*σ[j])
-        D[j] = sqrt(max(2m*(1-frac), 0))
+function matrix_profile(A::AbstractVector{<:Number}, T::AbstractVector{<:Number}, m::Int; showprogress=true)
+    n   = length(A)
+    l   = n-m+1
+    lT   = length(T)-m+1
+    n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $(2m)"))
+    μT,σT  = running_mean_std(T, m)
+    μA,σA  = running_mean_std(A, m)
+    QT   = window_dot(view(A, 1:m), T)
+    QT₀  = copy(QT)
+    D    = distance_profile(QT, μA, σA, μT, σT, m)
+    P    = copy(D)
+    I    = ones(Int, lT)
+    prog = Progress((l - 1) ÷ 10, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
+    @inbounds for i = 2:l
+        for j = lT:-1:2
+            QT[j] = QT[j-1] - T[j-1] * A[i-1] + T[j+m-1] * A[i+m-1]
+        end
+        # QT[1] = QT₀[i]
+        distance_profile!(D, QT, μA, σA, μT, σT, m, i)
+        update_min!(P, I, D, i, false)
+        showprogress && i % 10 == 0 && next!(prog)
     end
-    D
+    Profile(T, P, I, m, A)
 end
-distance_profile(Q, T) = distance_profile!(similar(T, length(T)-length(Q)+1), Q, T)
+
 
 function distance_profile!(D::AbstractVector{S}, QT::AbstractVector{S}, μ, σ, m::Int, i::Int) where S <: Number
     @assert i <= length(D)
@@ -75,12 +86,30 @@ function distance_profile!(D::AbstractVector{S}, QT::AbstractVector{S}, μ, σ, 
     D
 end
 
-distance_profile(QT::AbstractVector{S}, μ::AbstractVector{S}, σ::AbstractVector{S}, m::Int) where S<:Number = distance_profile!(similar(QT), QT, μ, σ, m, 1)
+
+function distance_profile!(D::AbstractVector{S}, QT::AbstractVector{S}, μA, σA, μT, σT, m::Int, i::Int) where S <: Number
+    @assert i <= length(μA)
+    @avx for j = eachindex(D,QT)
+        frac = (QT[j] - m*μA[i]*μT[j]) / (m*σA[i]*σT[j])
+        D[j] = sqrt(max(2m*(1-frac), 0))
+    end
+    D
+end
+
+distance_profile(
+    QT::AbstractVector{S},
+    μ::AbstractVector{S},
+    σ::AbstractVector{S},
+    m::Int,
+) where {S<:Number} = distance_profile!(similar(μ), QT, μ, σ, m, 1)
+
+distance_profile(QT::AbstractVector{S}, μA, σA, μT, σT, m::Int) where {S<:Number} =
+    distance_profile!(similar(μT), QT, μA, σA, μT, σT, m, 1)
 
 
-function update_min!(P, I, D, i)
+function update_min!(P, I, D, i, sym=true)
     @inbounds for j in eachindex(P,I,D)
-        j == i && continue
+        sym && j == i && continue
         if D[j] < P[j]
             P[j] = D[j]
             I[j] = i
@@ -131,6 +160,22 @@ end
 
 ## General data and distance ===================================================
 
+"""
+    distance_profile(Q, T)
+
+Compute the z-normalized Euclidean distance profile corresponding to sliding `Q` over `T`
+"""
+function distance_profile!(D::AbstractVector{S}, Q::AbstractVector{S}, T::AbstractVector{S}) where S <: Number
+    m = length(Q)
+    μ,σ  = running_mean_std(T, m)
+    QT   = window_dot(znorm(Q), T)
+    @avx for j = eachindex(D)
+        frac = QT[j] / (m*σ[j])
+        D[j] = sqrt(max(2m*(1-frac), 0))
+    end
+    D
+end
+distance_profile(Q, T) = distance_profile!(similar(T, length(T)-length(Q)+1), Q, T)
 
 
 function matrix_profile(T, m::Int, dist; showprogress=true)
@@ -148,7 +193,25 @@ function matrix_profile(T, m::Int, dist; showprogress=true)
         update_min!(P, I, D, i)
         showprogress && i % 10 == 0 && next!(prog)
     end
-    Profile(T, P, I, m)
+    Profile(T, P, I, m, nothing)
+end
+
+function matrix_profile(A::AbstractArray{S}, B::AbstractArray{S}, m::Int, dist; showprogress=true) where S
+    n   = length(A)
+    l   = n-m+1
+    n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $(2m)"))
+    P    = distance_profile(dist, getwindow(A,m,1), B)
+    # P[1] = typemax(eltype(P))
+    D    = similar(P)
+    I    = ones(Int, l)
+    prog = Progress((l - 1) ÷ 10, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
+    @inbounds for i = 2:l
+        Ai = getwindow(A,m,i)
+        distance_profile!(D, dist, Ai, B)
+        update_min!(P, I, D, i, false)
+        showprogress && i % 10 == 0 && next!(prog)
+    end
+    Profile(A, P, I, m, B)
 end
 
 
