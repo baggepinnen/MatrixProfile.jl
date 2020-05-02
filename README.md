@@ -3,7 +3,7 @@
 [![Build Status](https://github.com/baggepinnen/MatrixProfile.jl/workflows/CI/badge.svg)](https://github.com/baggepinnen/MatrixProfile.jl/actions)
 [![Coverage](https://codecov.io/gh/baggepinnen/MatrixProfile.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/baggepinnen/MatrixProfile.jl)
 
-Time-series analysis using the matrix profile. The matrix profile `P` tells you which sub-sequences of a time series `T` are similar to each other, and which are most dissimilar from all other. This will allow you to find repeated patterns, or *motifs*, as well as finding outliers.
+Time-series analysis using the matrix profile. The matrix profile `P` tells you which sub-sequences of a time series `T` are similar to each other, and which are most dissimilar from all other. This will allow you to find repeated patterns, or *motifs*, as well as finding outliers and anomalies. Here's a blog post that introduces the matrix profile with lots of nice figures and examples: https://towardsdatascience.com/introduction-to-matrix-profiles-5568f3375d90
 
 
 ### Installation
@@ -33,7 +33,7 @@ If called like
 ```julia
 profile = matrix_profile(A, B, m, [dist])
 ```
-consecutive windows of `A` will be compared to the entire `B`. The resulting matrix profile will indicate with small values when a window of `A` appeared in `B`, and with large values when a window in `A` were very different from `B`. This is not a symmetric function, in general, `matrix_profile(A, B) != matrix_profile(B, A)`.
+consecutive windows of `A` will be compared to the entire `B`. The resulting matrix profile will have a length that depends on `B`, and indicate with small values when a window of `A` appeared in `B`, and with large values when no window in `A` matched the corresponding window in `B`. This is not a symmetric function, in general, `matrix_profile(A, B) != matrix_profile(B, A)`.
 
 ### Runtime
 `matrix_profile` benefits greatly in speed from the use of `Float32` instead of `Float64`. The computational time scales as the square of the length of `T`, but is invariant to the window length. Calculating the matrix profile of `2^17 ≈ 100k` points takes less than minute on a laptop.
