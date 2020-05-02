@@ -35,6 +35,14 @@ plot(profile, mot)
 ![motif_plot](figures/motifs.svg)
 
 
+## Arbitrary metrics and input types
+The matrix profile can be computed for any object that has a "time axis" as a notion of distance. The examples so far have dealt with one-dimensional arrays of real numbers with the Euclidean metric, for which the matrix profile is particularly efficient to compute. We do not have to limit ourselves to this setting, though, and `matrix_profile` accepts any array-like object and any distance function on the form `dist(x,y)`. The interface looks like this
+```julia
+profile = matrix_profile(T, m, dist)
+```
+If `T` is a high-dimensional array, time is considered to be the last axis. `T` can also be a vector of any arbitrary julia objects for which the function `dist(x,y)` is defined. Note that if `T` has a long time dimensions, the matrix profile will be expensive to compute, 𝒪(n²log(n)). This method does not make use of the STOMP algorithm, since this is limited to one-dimensional data under the Euclidean metric.
+
+
 
 ## References
 The STOMP algorithm used in `matrix_profile` is detailed in the paper [Matrix profile II](https://www.cs.ucr.edu/~eamonn/STOMP_GPU_final_submission_camera_ready.pdf).

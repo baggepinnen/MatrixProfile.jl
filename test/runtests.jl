@@ -5,17 +5,22 @@ using MatrixProfile: znorm
 
 @testset "MatrixProfile.jl" begin
 
-   x = randn(30)
-   for w = 2:10
-       m,s = MatrixProfile.running_mean_std(x, w)
-       @test length(m) == length(s) == 30-w+1
-       @test m[1] ≈ mean(x[1:w])
-       @test s[1] ≈ std(x[1:w], corrected=false)
 
-       @test m[2] ≈ mean(x[2:w+1])
-       @test s[2] ≈ std(x[2:w+1], corrected=false)
-   end
+    @testset "running stats" begin
+        @info "Testing running stats"
 
+        x = randn(30)
+        for w = 2:10
+            m,s = MatrixProfile.running_mean_std(x, w)
+            @test length(m) == length(s) == 30-w+1
+            @test m[1] ≈ mean(x[1:w])
+            @test s[1] ≈ std(x[1:w], corrected=false)
+
+            @test m[2] ≈ mean(x[2:w+1])
+            @test s[2] ≈ std(x[2:w+1], corrected=false)
+        end
+
+    end
 
    t = range(0, stop=1, step=1/10)
    y0 = sin.(2pi .* t)
@@ -31,6 +36,18 @@ using MatrixProfile: znorm
    m = findmin(P)
    @test m[1] < 1e-6
    @test m[2] == 51 || m[2] == 112
+
+
+   @testset "Generic matrix profile" begin
+       @info "Testing Generic matrix profile"
+
+       profile2 = matrix_profile(T, length(y0), (x,y)->norm(znorm(x)-znorm(y)))
+       @test profile2.P ≈  profile.P
+       @test profile2.I == profile.I
+
+   end
+
+
 
    Q = randn(5)
    T = [randn(5); Q; randn(5)]
@@ -48,6 +65,11 @@ using MatrixProfile: znorm
        @test mot[1].onsets == [51, 112]
        @test_nowarn plot(profile, mot)
    end
+
+
+
+
+
 
  end
 
