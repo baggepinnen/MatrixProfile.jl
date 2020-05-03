@@ -1,27 +1,54 @@
 using MatrixProfile
 using Test, Statistics, LinearAlgebra, Plots
 
-using MatrixProfile: znorm
+using SlidingDistancesBase
+using MatrixProfile: znorm, window_dot, Profile
 
 normdist = (x,y)->norm(znorm(x)-znorm(y))
+
+function naive_matrix_profile(A,B,m)
+    res = map(1:length(B)-m+1) do i
+        findmin(distance_profile(getwindow(B,m,i), A))
+    end
+    Profile(B,getindex.(res, 1), getindex.(res, 2), m, A)
+end
+
+function profeq(p1,p2)
+    cond = p1.P ≈ p2.P
+    cond && return true
+    @show norm(p1.P - p2.P)
+    false
+end
+
 
 @testset "MatrixProfile.jl" begin
 
 
     @testset "running stats" begin
         @info "Testing running stats"
+        for l1 = [20,30]
+            for l2 = [20,30]
+                x = randn(l1)
+                y = randn(l2)
+                for w = 2:10
+                    mx,sx = MatrixProfile.running_mean_std(x, w)
+                    @test length(mx) == length(sx) == length(x)-w+1
+                    @test mx[1] ≈ mean(x[1:w])
+                    @test sx[1] ≈ std(x[1:w], corrected=false)
 
-        x = randn(30)
-        for w = 2:10
-            m,s = MatrixProfile.running_mean_std(x, w)
-            @test length(m) == length(s) == 30-w+1
-            @test m[1] ≈ mean(x[1:w])
-            @test s[1] ≈ std(x[1:w], corrected=false)
+                    @test mx[2] ≈ mean(x[2:w+1])
+                    @test sx[2] ≈ std(x[2:w+1], corrected=false)
 
-            @test m[2] ≈ mean(x[2:w+1])
-            @test s[2] ≈ std(x[2:w+1], corrected=false)
+                    my,sy = MatrixProfile.running_mean_std(y, w)
+                    QT = window_dot(getwindow(x,w,1), y)
+                    D = distance_profile(QT, mx,sx,my,sy,w)
+                    @test D[1] ≈ normdist(x[1:w], y[1:w])        atol=1e-5
+                    @test D[2] ≈ normdist(x[1:w], y[1 .+ (1:w)]) atol=1e-5
+                    @test D[5] ≈ normdist(x[1:w], y[4 .+ (1:w)]) atol=1e-5
+
+                end
+            end
         end
-
     end
 
     @testset "distance profile" begin
@@ -37,6 +64,7 @@ normdist = (x,y)->norm(znorm(x)-znorm(y))
    t = range(0, stop=1, step=1/10)
    y0 = sin.(2pi .* t)
    T = [randn(50); y0; randn(50); y0; randn(50)]
+   A = sign.([randn(50); y0; randn(50); y0; randn(50)])[1:end÷2] .+ 0.01.*randn.()
 
    profile = matrix_profile(T, length(y0))
    P,I = profile.P, profile.I
@@ -56,8 +84,22 @@ normdist = (x,y)->norm(znorm(x)-znorm(y))
 
    profile5 = matrix_profile(T[1:end÷2], T, length(y0))
    @test sum(profile5.P[1:length(T)÷2-length(y0)]) < 1e-5
+
    profile6 = matrix_profile(T, T[1:end÷2], length(y0))
    @test sum(profile6.P) < 1e-5
+
+
+   profile7n = naive_matrix_profile(T, A, length(y0))
+   profile7n2 = matrix_profile(T, A, length(y0), normdist)
+   profile7 = matrix_profile(T, A, length(y0))
+   @test profeq(profile7, profile7n)
+   @test profeq(profile7n, profile7n2)
+
+   profile8n = naive_matrix_profile(A, T, length(y0))
+   profile8n2 = matrix_profile(A, T, length(y0), normdist)
+   profile8 = matrix_profile(A, T, length(y0))
+   @test profeq(profile8, profile8n)
+   @test profeq(profile8n, profile8n2)
 
 
    @testset "Generic matrix profile" begin

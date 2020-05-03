@@ -8,7 +8,7 @@ using RecipesBase
 using SlidingDistancesBase
 import SlidingDistancesBase: floattype, lastlength, distance_profile, distance_profile!
 
-export matrix_profile, distance_profile, motifs, anomalies
+export matrix_profile, distance_profile, motifs, anomalies, mpdist
 
 
 struct Profile{TT,TP,QT}
@@ -31,7 +31,7 @@ function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true)
     l   = n-m+1
     n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $(2m)"))
     μ,σ  = running_mean_std(T, m)
-    QT   = window_dot(view(T, 1:m), T)
+    QT   = window_dot(getwindow(T, m, 1), T)
     QT₀  = copy(QT)
     D    = distance_profile(QT, μ, σ, m)
     P    = copy(D)
@@ -59,7 +59,8 @@ function matrix_profile(A::AbstractVector{<:Number}, T::AbstractVector{<:Number}
     n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $(2m)"))
     μT,σT  = running_mean_std(T, m)
     μA,σA  = running_mean_std(A, m)
-    QT   = window_dot(view(A, 1:m), T)
+    QT     = window_dot(getwindow(A, m, 1), T)
+    @assert length(QT) == lT
     QT₀  = copy(QT)
     D    = distance_profile(QT, μA, σA, μT, σT, m)
     P    = copy(D)
@@ -69,7 +70,7 @@ function matrix_profile(A::AbstractVector{<:Number}, T::AbstractVector{<:Number}
         for j = lT:-1:2
             @fastmath QT[j] = QT[j-1] - T[j-1] * A[i-1] + T[j+m-1] * A[i+m-1]
         end
-        # QT[1] = QT₀[i]
+        QT[1] = dot(getwindow(A, m, i), getwindow(T,m,1)) #QT₀[i]
         distance_profile!(D, QT, μA, σA, μT, σT, m, i)
         update_min!(P, I, D, i, false)
         showprogress && i % 10 == 0 && next!(prog)
@@ -91,7 +92,7 @@ end
 
 function distance_profile!(D::AbstractVector{S}, QT::AbstractVector{S}, μA, σA, μT, σT, m::Int, i::Int) where S <: Number
     @assert i <= length(μA)
-    @avx for j = eachindex(D,QT)
+    @avx for j = eachindex(D,QT,μT,σT)
         frac = (QT[j] - m*μA[i]*μT[j]) / (m*σA[i]*σT[j])
         D[j] = sqrt(max(2m*(1-frac), 0))
     end
@@ -106,7 +107,7 @@ distance_profile(
 ) where {S<:Number} = distance_profile!(similar(μ), QT, μ, σ, m, 1)
 
 distance_profile(QT::AbstractVector{S}, μA, σA, μT, σT, m::Int) where {S<:Number} =
-    distance_profile!(similar(μT), QT, μA, σA, μT, σT, m, 1)
+    distance_profile!(similar(μT),  QT, μA, σA, μT, σT, m, 1)
 
 
 function update_min!(P, I, D, i, sym=true)
@@ -201,11 +202,12 @@ end
 function matrix_profile(A::AbstractArray{S}, B::AbstractArray{S}, m::Int, dist; showprogress=true) where S
     n   = length(A)
     l   = n-m+1
+    lT   = length(B)-m+1
     n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $(2m)"))
     P    = distance_profile(dist, getwindow(A,m,1), B)
     # P[1] = typemax(eltype(P))
     D    = similar(P)
-    I    = ones(Int, l)
+    I    = ones(Int, lT)
     prog = Progress((l - 1) ÷ 10, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
     @inbounds for i = 2:l
         Ai = getwindow(A,m,i)
