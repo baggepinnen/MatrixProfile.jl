@@ -140,6 +140,24 @@ end
 
    @time matrix_profile(randn(Float32, 2^15), 256)
 
+   @testset "mpdist" begin
+       @info "Testing mpdist"
+
+
+       t = 1:0.1:3
+       A = @. sin(2pi * t) + 0.1 * randn()
+       B = @. sign(sin(2pi * t)) + 0.1 * randn()
+       m = 4
+       # p1 = matrix_profile(A,B,m)
+       # p2 = matrix_profile(B,A,m)
+       # partialsort([p1.P; p2.P], 20)
+       # plot(p1)
+       # plot!(p2)
+       @test mpdist(A,B, m) > 0
+       @test mpdist(A,A, m) < eps()
+       @test mpdist(B,B, m) < eps()
+
+   end
 
 
  end

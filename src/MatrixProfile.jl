@@ -223,4 +223,16 @@ include("motifs.jl")
 include("plotting.jl")
 
 
+
+
+function mpdist(A,B,m,k=(length(A)+length(B))÷20)
+    p1 = matrix_profile(A,B,m)
+    p2 = matrix_profile(B,A,m)
+    partialsort([p1.P; p2.P], k)
+end
+
+
+
+
+
 end
