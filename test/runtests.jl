@@ -134,14 +134,19 @@ end
        profile = matrix_profile(T, length(y0))
 
        @time mot = motifs(profile, 2, 2, 5)
+       @test MatrixProfile.subseqtype(mot) == "Motif"
        @test onsets(mot[1]) == [51, 112]
        @test_nowarn plot(mot)
        @test_nowarn plot(profile, mot)
 
        an = MatrixProfile.anomalies(profile, 3)
        @test length(an) == 3
+       @test length(seqs(an)) == 3
+       @test MatrixProfile.subseqtype(an) == "Anomaly"
        @test onsets(an)[1] == argmax(profile.P)
        @test_nowarn plot(an)
+       @test MatrixProfile.seqlength(an) == length(y0)
+
    end
 
 

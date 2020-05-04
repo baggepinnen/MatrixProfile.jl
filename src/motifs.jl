@@ -15,7 +15,7 @@ const SubSeqType = Union{AbstractSubSequence, AbstractVector{<:AbstractSubSequen
 onsets(m::Motif) = getfield.(m.seqs, :onset)
 seqs(m::Motif) = getfield.(m.seqs, :seq)
 seqlength(m::Motif) = length(m.seqs[1].seq)
-subseqtype(::Motif) = "Motif"
+subseqtype(::Union{Motif, Vector{<:Motif}}) = "Motif"
 
 onsets(m::Subsequence) = m.onset
 seqs(m::Subsequence) = [m.seq]
@@ -24,7 +24,7 @@ subseqtype(m::Subsequence) = m.type
 
 onsets(m::Array{<:Subsequence}) = onsets.(m)
 seqs(m::Array{<:Subsequence}) = getfield.(m, :seq)
-seqlength(m::Array{<:Subsequence}) = seqlength(length(m[1]))
+seqlength(m::Array{<:Subsequence}) = length(m[1].seq)
 subseqtype(m::Array{<:Subsequence}) = subseqtype(m[1])
 
 function motifs(p::Profile, k, r, th = 0, found_motifs = Motif[])

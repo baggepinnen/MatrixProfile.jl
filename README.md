@@ -40,6 +40,8 @@ consecutive windows of `A` will be compared to the entire `B`. The resulting mat
 
 If `dist` is provided, a generic (slow) method is used. If `dist` is not provided and the inputs `A,B` are one dimensional vectors of numbers, a fast method is used. The fast method handles long time series, `length(A) = length(B) = 100k` takes less than 30s.
 
+If the time-series is sampled very fast in relation to the time scale on which interesting things happen, you may try the function [`resample(T, fraction::Real)`](https://juliadsp.github.io/DSP.jl/stable/filters/#DSP.Filters.resample) to reduce the amount of data to process. Example, `resample(T, desired_samplerate/original_samplerate)`.
+
 ## Motif grouping
 Using the fake data from the example above, we can do
 ```julia
@@ -50,7 +52,7 @@ plot(profile, mot)
 ```
 - `k` is the number of motifs to extract
 - `r` controls how similar two windows must be to belong to the same motif. A higher value leads to more windows being grouped together.
-- `th` is a threshold on how far nearby in time two motifs are allowed to be.
+- `th` is a threshold on how nearby in time two motifs are allowed to be.
 ![motif_plot](figures/motifs.svg)
 
 Also see the function `anomalies(profile)` to find anomalies in the data, sometimes called *discords*.
