@@ -18,7 +18,9 @@ _append_inf(x) = vec([x; fill(Inf, 1, size(x,2))])
 end
 
 
-@recipe function plot(p::Profile, motifs::Union{Vector{Motif}, Motif})
+
+
+@recipe function plot(p::Profile, motifs::SubSeqType)
 
     motifs isa Vector || (motifs = [motifs])
 
@@ -32,9 +34,44 @@ end
         @series begin
             legend --> true
             group := j
-            label --> j
+            label --> string(subseqtype(m), " ", j)
             subplot := 1
-            _append_inf(m.onsets' .+ inds), _append_inf(reduce(hcat, m.motifs))
+            _append_inf(onsets(m)' .+ inds), _append_inf(reduce(hcat, seqs(m)))
+        end
+    end
+end
+
+
+@recipe function plot(motifs::SubSeqType)
+
+    motifs isa Vector || (motifs = [motifs])
+    layout --> length(motifs)
+    for (j,m) in enumerate(motifs)
+        @series begin
+            legend --> false
+            group := j
+            label --> string(subseqtype(m), " ", j)
+            title --> string(subseqtype(m), " ", j)
+            subplot := j
+            inds = 0:seqlength(m)-1
+            _append_inf(onsets(m)' .+ inds), _append_inf(reduce(hcat, seqs(m)))
+        end
+    end
+end
+
+@recipe function plot(motifs::Vector{Motif})
+
+    motifs isa Vector || (motifs = [motifs])
+    layout --> length(motifs)
+    for (j,m) in enumerate(motifs)
+        @series begin
+            legend --> false
+            group := j
+            label --> string(subseqtype(m), " ", j)
+            title --> string(subseqtype(m), " ", j)
+            subplot := j
+            inds = 0:seqlength(m)-1
+            reduce(hcat, seqs(m))
         end
     end
 end

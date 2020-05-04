@@ -8,7 +8,7 @@ using RecipesBase
 using SlidingDistancesBase
 import SlidingDistancesBase: floattype, lastlength, distance_profile, distance_profile!
 
-export matrix_profile, distance_profile, motifs, anomalies, mpdist
+export matrix_profile, distance_profile, motifs, anomalies, mpdist, mpdist_profile, onsets, snippets, seqs
 
 
 struct Profile{TT,TP,QT}
@@ -29,7 +29,7 @@ Reference: [Matrix profile II](https://www.cs.ucr.edu/~eamonn/STOMP_GPU_final_su
 function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true)
     n   = length(T)
     l   = n-m+1
-    n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $(2m)"))
+    n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $((n+1)÷2)"))
     μ,σ  = running_mean_std(T, m)
     QT   = window_dot(getwindow(T, m, 1), T)
     QT₀  = copy(QT)
@@ -56,7 +56,7 @@ function matrix_profile(A::AbstractVector{<:Number}, T::AbstractVector{<:Number}
     n   = length(A)
     l   = n-m+1
     lT   = length(T)-m+1
-    n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $(2m)"))
+    # n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $((n+1)÷2)"))
     μT,σT  = running_mean_std(T, m)
     μA,σA  = running_mean_std(A, m)
     QT     = window_dot(getwindow(A, m, 1), T)
@@ -132,7 +132,7 @@ function window_dot(Q, T)
 end
 
 function running_mean_std(x::AbstractArray{T}, m) where T
-    @assert length(x) > m
+    @assert length(x) >= m
     n = length(x)-m+1
     s = ss = zero(T)
     μ = similar(x, n)
@@ -152,6 +152,10 @@ function running_mean_std(x::AbstractArray{T}, m) where T
         σ[i+1] = sqrt(ss/m - μ[i+1]^2)
     end
     μ,σ
+end
+
+function moving_mean(x::AbstractArray{T}, m) where T
+    filtfilt(ones(m), [m], x)
 end
 
 function znorm(x::AbstractVector)
@@ -184,7 +188,7 @@ distance_profile(Q, T) = distance_profile!(similar(T, length(T)-length(Q)+1), Q,
 function matrix_profile(T, m::Int, dist; showprogress=true)
     n   = length(T)
     l   = n-m+1
-    n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $(2m)"))
+    # n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $((n+1)÷2)"))
     P    = distance_profile(dist, getwindow(T,m,1), T)
     P[1] = typemax(eltype(P))
     D    = similar(P)
@@ -203,7 +207,7 @@ function matrix_profile(A::AbstractArray{S}, B::AbstractArray{S}, m::Int, dist; 
     n   = length(A)
     l   = n-m+1
     lT   = length(B)-m+1
-    n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $(2m)"))
+    n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $((n+1)÷2)"))
     P    = distance_profile(dist, getwindow(A,m,1), B)
     # P[1] = typemax(eltype(P))
     D    = similar(P)
@@ -224,13 +228,135 @@ include("plotting.jl")
 
 
 
+"""
+    mpdist(A, B, m, k = ((length(A) + length(B)) - 2m) ÷ 20)
 
-function mpdist(A,B,m,k=(length(A)+length(B))÷20)
+The MP distance between `A` and `B` using window length `M` and returning the `k`th smallest value.
+"""
+function mpdist(A,B,m,k=(length(A)+length(B)-2m)÷20)
     p1 = matrix_profile(A,B,m)
     p2 = matrix_profile(B,A,m)
     partialsort([p1.P; p2.P], k)
 end
 
+"""
+    mpdist(MP::AbstractArray, th::Real, N::Int)
+
+The MP distance given a precomputed matrix profile, calculating `k` as `th*N` where `N` is the length of the data used to create `MP`.
+"""
+function mpdist(MP::AbstractArray, th::Real, N::Int)
+    k = ceil(Int, th*N)
+    filter!(isfinite, MP)
+    if isempty(MP)
+        return typemax(eltype(MP))
+    elseif length(MP) >= k
+        return partialsort(MP, k)
+    else
+        return maximum(MP)
+    end
+end
+
+"""
+    mpdist_profile(T::AbstractVector, S::Int, m::Int)
+
+All MP distance profiles between subsequences of length `S` in `T` using internal window length `m`.
+"""
+function mpdist_profile(T::AbstractVector,S::Int, m::Int)
+    S >= m || throw(ArgumentError("S should be > m"))
+    n = length(T)
+    pad = S * ceil(Int, n / S) - n
+    T = [T;zeros(pad)]
+    @showprogress 1 "MP dist profile" map(1:S:n-S) do i
+        d = mpdist_profile(getwindow(T,S,i), T, m)
+    end
+end
+
+
+
+"""
+    mpdist_profile(A::AbstractVector, B::AbstractVector, m::Int)
+
+MP distance profile between two time series using window length `m`.
+"""
+function mpdist_profile(A::AbstractVector, B::AbstractVector, m::Int)
+    # % A the longer time series
+    # % B the shorter time series
+    th = 0.05
+    l1 = length(A)
+    l2 = length(B)
+    if l1 < l2
+        A, B = B, A
+    end
+
+    D               = mpdistmat(A, B, m)
+    rows, cols      = size(D)
+    moving_means    = similar(D)
+    right_marginals = minimum(D, dims=2)
+    for i = 1:cols
+        moving_means[:,i] = moving_mean(D[:,i], cols)
+    end
+
+    l                = length(A)-length(B)+1
+    N_right_marginal = length(B)-m+1
+    left_marginal    = zeros(N_right_marginal)
+
+    map(1:l) do i
+        right_marginal = right_marginals[i:N_right_marginal+i-1]
+        left_marginal .= moving_means[i+cols÷2,:]
+        m_profile = [left_marginal; right_marginal]
+        mpdist(m_profile, th, 2length(B))
+    end
+end
+
+
+function mpdistmat(A::AbstractVector, B::AbstractVector, m::Int)
+    N = length(B)-m +1
+    D = similar(A, length(A)-m+1, N)
+    for i = 1:N
+        D[:,i] = distance_profile(getwindow(B, m, i), A)
+    end
+    D
+end
+
+
+
+"""
+    snippets(T, k, S, m = max(S ÷ 10, 4))
+
+Summarize time series `T` by extracting `k` snippets of length `S`
+The parameter `m` controls the window length used internally.
+"""
+function snippets(T, k, S, m = max(S÷10, 4))
+    D = mpdist_profile(T,S,m)
+    Q = fill(Inf, length(D[1]))
+    n = length(T)
+    minI = 0
+    onsets = zeros(Int, k)
+    snippet_profiles = similar(D, k)
+    for j = 1:k
+        minA = Inf
+        for i = 1:n÷S
+            A = sum(min.(D[i], Q))
+            if A < minA
+                minA = A
+                minI = i
+            end
+        end
+        snippet_profiles[j] = D[minI]
+        Q = min.(D[minI], Q)
+        onsets[j] = (minI-1)*S+1
+    end
+    tot_min = reduce((x,y)->min.(x,y), snippet_profiles, init=Inf*D[1])
+    Cfracs = map(1:k) do j
+        spj = snippet_profiles[j]
+        f = count(spj .== tot_min)
+        Cfrac = f/(n-S+1)
+    end
+
+    profile = Profile(T,tot_min,Int[],S,nothing)
+    mot = Subsequence(profile, onsets, "Snippet")
+    profile, mot, Cfracs
+end
 
 
 

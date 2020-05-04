@@ -127,13 +127,21 @@ end
 
    @testset "Motifs" begin
        @info "Testing Motifs"
+       t = range(0, stop=1, step=1/10)
+       y0 = sin.(2pi .* t)
+       T = [randn(50); y0; randn(50); y0; randn(50)]
+       A = sign.([randn(50); y0; randn(50); y0; randn(50)])[1:end÷2] .+ 0.01.*randn.()
+       profile = matrix_profile(T, length(y0))
+
        @time mot = motifs(profile, 2, 2, 5)
-       @test mot[1].onsets == [51, 112]
+       @test onsets(mot[1]) == [51, 112]
+       @test_nowarn plot(mot)
        @test_nowarn plot(profile, mot)
 
        an = MatrixProfile.anomalies(profile, 3)
-       @test length(an.motifs) == length(an.onsets) == 3
-       @test an.onsets[1] == argmax(profile.P)
+       @test length(an) == 3
+       @test onsets(an)[1] == argmax(profile.P)
+       @test_nowarn plot(an)
    end
 
 
@@ -144,7 +152,7 @@ end
        @info "Testing mpdist"
 
 
-       t = 1:0.1:3
+       t = 1:0.01:3
        A = @. sin(2pi * t) + 0.1 * randn()
        B = @. sign(sin(2pi * t)) + 0.1 * randn()
        m = 4
@@ -156,14 +164,22 @@ end
        @test mpdist(A,B, m) > 0
        @test mpdist(A,A, m) < eps()
        @test mpdist(B,B, m) < eps()
+       p = mpdist_profile([A; B], 50, 5)
+       @test_nowarn plot(p)
+
+       profile, snips, Cfracs = MatrixProfile.snippets([A; B], 2, 50, 5)
+       @test_nowarn plot(profile, snips)
 
    end
 
 
  end
 
-
-
+path = "/tmp/MixedBag/01911m_02019m_III_7680_200.txt"
+T = parse.(Int, split(join(Char.(read(path))), ','))
+profile, mot, Cfracs = MatrixProfile.snippets(T, 3, 100, 50)
+plot(profile, mot, legend=false)
+plot(mot, layout=(1,3), size=(800,200))
 
 
 
@@ -189,3 +205,8 @@ end
 # p2 = matrix_profile(Float32.(a),  20)
 # @show mean(abs.(p1.P - p2.P)./p1.P)
 # plot(abs.(p1.P - p2.P)./p1.P)
+
+# path = "/tmp/MixedBag/01911m_02019m_III_7680_200.txt"
+# T = parse.(Int, split(join(Char.(read(path))), ','))
+# profile, snips, Cfracs = snippets(T, 3, 20, 10)
+# plot(plot(snips, layout = (1, 3), size = (800, 200)), plot(profile, snips, legend = false), layout=(2,1))

@@ -36,7 +36,7 @@ profile = matrix_profile(A, B, m, [dist])
 consecutive windows of `A` will be compared to the entire `B`. The resulting matrix profile will have a length that depends on `B`, and indicate with small values when a window of `A` appeared in `B`, and with large values when no window in `A` matched the corresponding window in `B`. This is not a symmetric function, in general, `matrix_profile(A, B) != matrix_profile(B, A)`.
 
 ### Runtime
-`matrix_profile` benefits greatly in speed from the use of `Float32` instead of `Float64`. The computational time scales as the square of the length of `T`, but is invariant to the window length. Calculating the matrix profile of `2^17 ≈ 100k` points takes less than minute on a laptop.
+`matrix_profile` benefits greatly in speed from the use of `Float32` instead of `Float64`, but may accumulate some error for very long time series (> 10⁶ perhaps). The computational time scales as the square of the length of `T`, but is invariant to the window length. Calculating the matrix profile of `2^17 ≈ 100k` points takes less than minute on a laptop.
 
 If `dist` is provided, a generic (slow) method is used. If `dist` is not provided and the inputs `A,B` are one dimensional vectors of numbers, a fast method is used. The fast method handles long time series, `length(A) = length(B) = 100k` takes less than 30s.
 
@@ -46,6 +46,7 @@ Using the fake data from the example above, we can do
 k = 2; r = 2; th = 5;
 mot = motifs(profile, k, r, th)
 plot(profile, mot)
+# plot(mot) # Motifs can be plotted on their own for a different view.
 ```
 - `k` is the number of motifs to extract
 - `r` controls how similar two windows must be to belong to the same motif. A higher value leads to more windows being grouped together.
@@ -62,7 +63,31 @@ profile = matrix_profile(T, m, dist)
 ```
 If `T` is a high-dimensional array, time is considered to be the last axis. `T` can also be a vector of any arbitrary julia objects for which the function `dist(x,y)` is defined. Note that if `T` has a long time dimensions, the matrix profile will be expensive to compute, 𝒪(n²log(n)). This method does not make use of the STOMP algorithm, since this is limited to one-dimensional data under the Euclidean metric.
 
+## MP distance
+See `mpdist(A,B,m)`.
+
+
+## Time series snippets
+To summarize a time series in the form of a small number of snippets, we have the function `snippets`.
+```julia
+profile, snips, Cfracs = snippets(T, 3, 100)
+plot(
+    plot(snips, layout = (1, 3), size = (800, 200)),
+    plot(profile, snips, legend = false), layout=(2,1)
+)
+```
+![snippets](figures/snippets.svg)
+
+The arguments to `snippets` are
+- The time series
+- The desired number of snippets
+- The length of each snippet
+- Optional: the length of a small subsequence to be used internally.
+
+This function can take a while to run for long time-series, for `length(T) = 15k`, it takes less than a minute on a laptop. The time depends strongly on the internal window length parameter.
 
 
 ## References
-The STOMP algorithm used in `matrix_profile` is detailed in the paper [Matrix profile II](https://www.cs.ucr.edu/~eamonn/STOMP_GPU_final_submission_camera_ready.pdf).
+- The STOMP algorithm used in `matrix_profile` is detailed in the paper [Matrix profile II](https://www.cs.ucr.edu/~eamonn/STOMP_GPU_final_submission_camera_ready.pdf).
+- The MP distance is described in [Matrix profile XII](https://www.cs.ucr.edu/~eamonn/MPdist_Expanded.pdf)
+- The algorithm for extraction of time-series snippets comes from [Matrix profile XIII](https://www.cs.ucr.edu/~eamonn/Time_Series_Snippets_10pages.pdf)
