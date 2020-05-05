@@ -8,7 +8,7 @@ _append_inf(x) = vec([x; fill(Inf, 1, size(x,2))])
         title --> "T"
         label --> "T"
         subplot --> 1
-        p.T
+        p.T isa AbstractVector{<:Number} ? p.T : reduce(hcat, p.T)'
     end
     @series begin
         title --> "Matrix profile"
@@ -42,19 +42,19 @@ end
 end
 
 
-@recipe function plot(motifs::SubSeqType)
+@recipe function plot(sequences::SubSeqType)
 
-    motifs isa Vector || (motifs = [motifs])
-    layout --> length(motifs)
-    for (j,m) in enumerate(motifs)
+    sequences isa Vector || (sequences = [sequences])
+    layout --> length(sequences)
+    for (j,s) in enumerate(sequences)
         @series begin
             legend --> false
             group := j
-            label --> string(subseqtype(m), " ", j)
-            title --> string(subseqtype(m), " ", j)
+            label --> string(subseqtype(s), " ", j)
+            title --> string(subseqtype(s), " ", j)
             subplot := j
-            inds = 0:seqlength(m)-1
-            _append_inf(onsets(m)' .+ inds), _append_inf(reduce(hcat, seqs(m)))
+            inds = 0:seqlength(s)-1
+            _append_inf(onsets(s)' .+ inds), _append_inf(reduce(hcat, seqs(s)))
         end
     end
 end

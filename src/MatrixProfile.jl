@@ -27,7 +27,7 @@ Return the matrix profile and the profile indices of time series `T` with window
 Reference: [Matrix profile II](https://www.cs.ucr.edu/~eamonn/STOMP_GPU_final_submission_camera_ready.pdf).
 """
 function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true)
-    n   = length(T)
+    n   = lastlength(T)
     l   = n-m+1
     n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $((n+1)÷2)"))
     μ,σ  = running_mean_std(T, m)
@@ -46,7 +46,7 @@ function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true)
         QT[1] = QT₀[i]
         distance_profile!(D, QT, μ, σ, m, i)
         update_min!(P, I, D, i)
-        showprogress && i % 10 == 0 && next!(prog)
+        showprogress && i % 5 == 0 && next!(prog)
     end
     Profile(T, P, I, m, nothing)
 end
@@ -55,7 +55,7 @@ end
 function matrix_profile(A::AbstractVector{<:Number}, T::AbstractVector{<:Number}, m::Int; showprogress=true)
     n   = length(A)
     l   = n-m+1
-    lT   = length(T)-m+1
+    lT   = lastlength(T)-m+1
     # n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $((n+1)÷2)"))
     μT,σT  = running_mean_std(T, m)
     μA,σA  = running_mean_std(A, m)
@@ -73,7 +73,7 @@ function matrix_profile(A::AbstractVector{<:Number}, T::AbstractVector{<:Number}
         QT[1] = dot(getwindow(A, m, i), getwindow(T,m,1)) #QT₀[i]
         distance_profile!(D, QT, μA, σA, μT, σT, m, i)
         update_min!(P, I, D, i, false)
-        showprogress && i % 10 == 0 && next!(prog)
+        showprogress && i % 5 == 0 && next!(prog)
     end
     Profile(T, P, I, m, A)
 end
@@ -111,7 +111,9 @@ distance_profile(QT::AbstractVector{S}, μA, σA, μT, σT, m::Int) where {S<:Nu
 
 
 function update_min!(P, I, D, i, sym=true)
-    @inbounds for j in eachindex(P,I,D)
+    n = lastlength(P)
+    @assert n == lastlength(I) == lastlength(D) "Lengths are not consistent, $(eachindex(P,I,D))"
+    @inbounds for j in 1:n
         sym && j == i && continue
         if D[j] < P[j]
             P[j] = D[j]
@@ -165,7 +167,6 @@ end
 
 
 
-## General data and distance ===================================================
 
 """
     distance_profile(Q, T)
@@ -184,13 +185,14 @@ function distance_profile!(D::AbstractVector{S}, Q::AbstractVector{S}, T::Abstra
 end
 distance_profile(Q, T) = distance_profile!(similar(T, length(T)-length(Q)+1), Q, T)
 
+## General data and distance ===================================================
 
 function matrix_profile(T, m::Int, dist; showprogress=true)
-    n   = length(T)
+    n   = lastlength(T)
     l   = n-m+1
     # n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $((n+1)÷2)"))
     P    = distance_profile(dist, getwindow(T,m,1), T)
-    P[1] = typemax(eltype(P))
+    P[1] = typemax(floattype(P))
     D    = similar(P)
     I    = ones(Int, l)
     prog = Progress((l - 1) ÷ 10, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
@@ -198,15 +200,15 @@ function matrix_profile(T, m::Int, dist; showprogress=true)
         Ti = getwindow(T,m,i)
         distance_profile!(D, dist, Ti, T)
         update_min!(P, I, D, i)
-        showprogress && i % 10 == 0 && next!(prog)
+        showprogress && i % 5 == 0 && next!(prog)
     end
     Profile(T, P, I, m, nothing)
 end
 
 function matrix_profile(A::AbstractArray{S}, B::AbstractArray{S}, m::Int, dist; showprogress=true) where S
-    n   = length(A)
+    n   = lastlength(A)
     l   = n-m+1
-    lT   = length(B)-m+1
+    lT   = lastlength(B)-m+1
     n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $((n+1)÷2)"))
     P    = distance_profile(dist, getwindow(A,m,1), B)
     # P[1] = typemax(eltype(P))
@@ -217,7 +219,7 @@ function matrix_profile(A::AbstractArray{S}, B::AbstractArray{S}, m::Int, dist; 
         Ai = getwindow(A,m,i)
         distance_profile!(D, dist, Ai, B)
         update_min!(P, I, D, i, false)
-        showprogress && i % 10 == 0 && next!(prog)
+        showprogress && i % 5 == 0 && next!(prog)
     end
     Profile(B, P, I, m, A)
 end
@@ -263,7 +265,7 @@ All MP distance profiles between subsequences of length `S` in `T` using interna
 """
 function mpdist_profile(T::AbstractVector,S::Int, m::Int)
     S >= m || throw(ArgumentError("S should be > m"))
-    n = length(T)
+    n = lastlength(T)
     pad = S * ceil(Int, n / S) - n
     T = [T;zeros(pad)]
     @showprogress 1 "MP dist profile" map(1:S:n-S) do i
@@ -282,8 +284,8 @@ function mpdist_profile(A::AbstractVector, B::AbstractVector, m::Int)
     # % A the longer time series
     # % B the shorter time series
     th = 0.05
-    l1 = length(A)
-    l2 = length(B)
+    l1 = lastlength(A)
+    l2 = lastlength(B)
     if l1 < l2
         A, B = B, A
     end
@@ -296,8 +298,8 @@ function mpdist_profile(A::AbstractVector, B::AbstractVector, m::Int)
         moving_means[:,i] = moving_mean(D[:,i], cols)
     end
 
-    l                = length(A)-length(B)+1
-    N_right_marginal = length(B)-m+1
+    l                = lastlength(A)-lastlength(B)+1
+    N_right_marginal = lastlength(B)-m+1
     left_marginal    = zeros(N_right_marginal)
 
     map(1:l) do i
@@ -310,8 +312,8 @@ end
 
 
 function mpdistmat(A::AbstractVector, B::AbstractVector, m::Int)
-    N = length(B)-m +1
-    D = similar(A, length(A)-m+1, N)
+    N = lastlength(B)-m +1
+    D = similar(A, lastlength(A)-m+1, N)
     for i = 1:N
         D[:,i] = distance_profile(getwindow(B, m, i), A)
     end
@@ -335,7 +337,7 @@ function snippets(T, k, S, m = max(S÷10, 4))
     snippet_profiles = similar(D, k)
     for j = 1:k
         minA = Inf
-        for i = 1:n÷S
+        for i = 1:length(D)
             A = sum(min.(D[i], Q))
             if A < minA
                 minA = A
