@@ -180,13 +180,6 @@ end
 
  end
 
-## Test snippets on long series
-# path = "/tmp/MixedBag/01911m_02019m_III_7680_200.txt"
-# T = parse.(Int, split(join(Char.(read(path))), ','))
-# profile, mot, Cfracs = MatrixProfile.snippets(T, 3, 100, 50)
-# plot(profile, mot, legend=false)
-# plot(mot, layout=(1,3), size=(800,200))
-
 
 
 # Benchmark
