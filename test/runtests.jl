@@ -133,13 +133,13 @@ end
        A = sign.([randn(50); y0; randn(50); y0; randn(50)])[1:end÷2] .+ 0.01.*randn.()
        profile = matrix_profile(T, length(y0))
 
-       @time mot = motifs(profile, 2, 2, 5)
+       @time mot = motifs(profile, 2, r=2, th=5)
        @test MatrixProfile.subseqtype(mot) == "Motif"
        @test onsets(mot[1]) == [51, 112]
        @test_nowarn plot(mot)
        @test_nowarn plot(profile, mot)
 
-       an = MatrixProfile.anomalies(profile, 3)
+       an = anomalies(profile, 3)
        @test length(an) == 3
        @test length(seqs(an)) == 3
        @test MatrixProfile.subseqtype(an) == "Anomaly"
@@ -172,7 +172,7 @@ end
        p = mpdist_profile([A; B], 50, 5)
        @test_nowarn plot(p)
 
-       profile, snips, Cfracs = MatrixProfile.snippets([A; B], 2, 50, 5)
+       profile, snips, Cfracs = snippets([A; B], 2, 50, 5)
        @test_nowarn plot(profile, snips)
 
    end

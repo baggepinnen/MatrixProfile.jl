@@ -45,8 +45,8 @@ If the time-series is sampled very fast in relation to the time scale on which i
 ## Motif grouping
 Using the fake data from the example above, we can do
 ```julia
-k = 2; r = 2; th = 5;
-mot = motifs(profile, k, r, th)
+k = 2
+mot = motifs(profile, k; r=2, th=5)
 plot(profile, mot)
 # plot(mot) # Motifs can be plotted on their own for a different view.
 ```
@@ -84,7 +84,7 @@ The arguments to `snippets` are
 - The time series
 - The desired number of snippets
 - The length of each snippet
-- Optional: the length of a small subsequence to be used internally.
+- Optional `m`: the length of a small subsequence to be used internally, defaults to 10% of the snippet length.
 
 This function can take a while to run for long time-series, for `length(T) = 15k`, it takes less than a minute on a laptop. The time depends strongly on the internal window length parameter.
 

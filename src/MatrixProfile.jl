@@ -323,12 +323,12 @@ end
 
 
 """
-    snippets(T, k, S, m = max(S ÷ 10, 4))
+    snippets(T, k, S; m = max(S ÷ 10, 4))
 
 Summarize time series `T` by extracting `k` snippets of length `S`
 The parameter `m` controls the window length used internally.
 """
-function snippets(T, k, S, m = max(S÷10, 4))
+function snippets(T, k, S; m = max(S÷10, 4))
     D = mpdist_profile(T,S,m)
     Q = fill(Inf, length(D[1]))
     n = length(T)
