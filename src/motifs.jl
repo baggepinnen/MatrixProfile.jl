@@ -27,17 +27,13 @@ seqs(m::Array{<:Subsequence}) = getfield.(m, :seq)
 seqlength(m::Array{<:Subsequence}) = length(m[1].seq)
 subseqtype(m::Array{<:Subsequence}) = subseqtype(m[1])
 
-function motifs(p::Profile, k, found_motifs = Motif[]; r=2, th = p.m, dist = nothing)
+function motifs(p::Profile, k, found_motifs = Motif[]; r=2, th = p.m, dist = Euclidean())
     length(found_motifs) == k && return found_motifs
     m = p.m
     P = copy(p.P)
     remove_found_motifs!(P, found_motifs, th)
     d, i = findmin(P)
-    if dist === nothing
-        distance_profile!(P, getwindow(p.T, m, i), p.T)
-    else
-        distance_profile!(P, dist, getwindow(p.T, m, i), p.T)
-    end
+    distance_profile!(P, dist, getwindow(p.T, m, i), p.T)
     remove_found_motifs!(P, found_motifs, th)
     onsets = findall(<=((d + 1e-5)*r), P)
     i ∈ onsets || push!(onsets, i)

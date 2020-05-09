@@ -5,6 +5,9 @@ using LoopVectorization
 using ProgressMeter
 using RecipesBase
 
+using Distances
+export Euclidean
+
 using SlidingDistancesBase
 import SlidingDistancesBase: floattype, lastlength, distance_profile, distance_profile!
 
@@ -33,7 +36,7 @@ function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true)
     μ,σ  = running_mean_std(T, m)
     QT   = window_dot(getwindow(T, m, 1), T)
     QT₀  = copy(QT)
-    D    = distance_profile(QT, μ, σ, m)
+    D    = distance_profile(Euclidean(), QT, μ, σ, m)
     P    = copy(D)
     I    = ones(Int, l)
     prog = Progress((l - 1) ÷ 10, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
@@ -44,7 +47,7 @@ function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true)
             # The expression with fastmath appears to be both more accurate and faster than both muladd and fma
         end
         QT[1] = QT₀[i]
-        distance_profile!(D, QT, μ, σ, m, i)
+        distance_profile!(D, Euclidean(), QT, μ, σ, m, i)
         update_min!(P, I, D, i)
         showprogress && i % 5 == 0 && next!(prog)
     end
@@ -62,7 +65,7 @@ function matrix_profile(A::AbstractVector{<:Number}, T::AbstractVector{<:Number}
     QT     = window_dot(getwindow(A, m, 1), T)
     @assert length(QT) == lT
     QT₀  = copy(QT)
-    D    = distance_profile(QT, μA, σA, μT, σT, m)
+    D    = distance_profile(Euclidean(), QT, μA, σA, μT, σT, m)
     P    = copy(D)
     I    = ones(Int, lT)
     prog = Progress((l - 1) ÷ 10, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
@@ -71,15 +74,20 @@ function matrix_profile(A::AbstractVector{<:Number}, T::AbstractVector{<:Number}
             @fastmath QT[j] = QT[j-1] - T[j-1] * A[i-1] + T[j+m-1] * A[i+m-1]
         end
         QT[1] = dot(getwindow(A, m, i), getwindow(T,m,1)) #QT₀[i]
-        distance_profile!(D, QT, μA, σA, μT, σT, m, i)
+        distance_profile!(D, Euclidean(), QT, μA, σA, μT, σT, m, i)
         update_min!(P, I, D, i, false)
         showprogress && i % 5 == 0 && next!(prog)
     end
     Profile(T, P, I, m, A)
 end
 
+matrix_profile(T::AbstractVector{<:Number}, m::Int, ::Euclidean; kwargs...) =
+    matrix_profile(T, m; kwargs...)
+matrix_profile(A::AbstractVector{<:Number}, T::AbstractVector{<:Number}, m::Int, ::Euclidean; kwargs...) =
+        matrix_profile(A, T, m; kwargs...)
 
-function distance_profile!(D::AbstractVector{S}, QT::AbstractVector{S}, μ, σ, m::Int, i::Int) where S <: Number
+
+function distance_profile!(D::AbstractVector{S},::Euclidean, QT::AbstractVector{S}, μ, σ, m::Int, i::Int) where S <: Number
     @assert i <= length(D)
     @avx for j = eachindex(D)
         frac = (QT[j] - m*μ[i]*μ[j]) / (m*σ[i]*σ[j])
@@ -90,7 +98,7 @@ function distance_profile!(D::AbstractVector{S}, QT::AbstractVector{S}, μ, σ, 
 end
 
 
-function distance_profile!(D::AbstractVector{S}, QT::AbstractVector{S}, μA, σA, μT, σT, m::Int, i::Int) where S <: Number
+function distance_profile!(D::AbstractVector{S},::Euclidean, QT::AbstractVector{S}, μA, σA, μT, σT, m::Int, i::Int) where S <: Number
     @assert i <= length(μA)
     @avx for j = eachindex(D,QT,μT,σT)
         frac = (QT[j] - m*μA[i]*μT[j]) / (m*σA[i]*σT[j])
@@ -99,15 +107,15 @@ function distance_profile!(D::AbstractVector{S}, QT::AbstractVector{S}, μA, σA
     D
 end
 
-distance_profile(
+distance_profile(::Euclidean,
     QT::AbstractVector{S},
     μ::AbstractVector{S},
     σ::AbstractVector{S},
     m::Int,
-) where {S<:Number} = distance_profile!(similar(μ), QT, μ, σ, m, 1)
+) where {S<:Number} = distance_profile!(similar(μ), Euclidean(), QT, μ, σ, m, 1)
 
-distance_profile(QT::AbstractVector{S}, μA, σA, μT, σT, m::Int) where {S<:Number} =
-    distance_profile!(similar(μT),  QT, μA, σA, μT, σT, m, 1)
+distance_profile(::Euclidean, QT::AbstractVector{S}, μA, σA, μT, σT, m::Int) where {S<:Number} =
+    distance_profile!(similar(μT), Euclidean(), QT, μA, σA, μT, σT, m, 1)
 
 
 function update_min!(P, I, D, i, sym=true)
@@ -169,11 +177,11 @@ end
 
 
 """
-    distance_profile(Q, T)
+    distance_profile(::Euclidean, Q, T)
 
 Compute the z-normalized Euclidean distance profile corresponding to sliding `Q` over `T`
 """
-function distance_profile!(D::AbstractVector{S}, Q::AbstractVector{S}, T::AbstractVector{S}) where S <: Number
+function distance_profile!(D::AbstractVector{S}, ::Euclidean, Q::AbstractVector{S}, T::AbstractVector{S}) where S <: Number
     m = length(Q)
     μ,σ  = running_mean_std(T, m)
     QT   = window_dot(znorm(Q), T)
@@ -183,7 +191,8 @@ function distance_profile!(D::AbstractVector{S}, Q::AbstractVector{S}, T::Abstra
     end
     D
 end
-distance_profile(Q, T) = distance_profile!(similar(T, length(T)-length(Q)+1), Q, T)
+distance_profile(::Euclidean, Q::AbstractArray{S}, T::AbstractArray{S}) where {S} =
+    distance_profile!(similar(T, length(T) - length(Q) + 1), Euclidean(), Q, T)
 
 ## General data and distance ===================================================
 
@@ -235,9 +244,9 @@ include("plotting.jl")
 
 The MP distance between `A` and `B` using window length `M` and returning the `k`th smallest value.
 """
-function mpdist(A,B,m,k=(length(A)+length(B)-2m)÷20)
-    p1 = matrix_profile(A,B,m)
-    p2 = matrix_profile(B,A,m)
+function mpdist(A,B,m,d=Euclidean(),k=(length(A)+length(B)-2m)÷20)
+    p1 = matrix_profile(A,B,m,d)
+    p2 = matrix_profile(B,A,m,d)
     partialsort([p1.P; p2.P], k)
 end
 
@@ -263,13 +272,13 @@ end
 
 All MP distance profiles between subsequences of length `S` in `T` using internal window length `m`.
 """
-function mpdist_profile(T::AbstractVector,S::Int, m::Int)
+function mpdist_profile(T::AbstractVector,S::Int, m::Int, d=Euclidean())
     S >= m || throw(ArgumentError("S should be > m"))
     n = lastlength(T)
     pad = S * ceil(Int, n / S) - n
     T = [T;zeros(pad)]
     @showprogress 1 "MP dist profile" map(1:S:n-S) do i
-        d = mpdist_profile(getwindow(T,S,i), T, m)
+        d = mpdist_profile(getwindow(T,S,i), T, m, d)
     end
 end
 
@@ -280,7 +289,7 @@ end
 
 MP distance profile between two time series using window length `m`.
 """
-function mpdist_profile(A::AbstractVector, B::AbstractVector, m::Int)
+function mpdist_profile(A::AbstractVector, B::AbstractVector, m::Int, d=Euclidean())
     # % A the longer time series
     # % B the shorter time series
     th = 0.05
@@ -290,7 +299,7 @@ function mpdist_profile(A::AbstractVector, B::AbstractVector, m::Int)
         A, B = B, A
     end
 
-    D               = mpdistmat(A, B, m)
+    D               = mpdistmat(A, B, m, d)
     rows, cols      = size(D)
     moving_means    = similar(D)
     right_marginals = minimum(D, dims=2)
@@ -311,11 +320,11 @@ function mpdist_profile(A::AbstractVector, B::AbstractVector, m::Int)
 end
 
 
-function mpdistmat(A::AbstractVector, B::AbstractVector, m::Int)
+function mpdistmat(A::AbstractVector, B::AbstractVector, m::Int, d)
     N = lastlength(B)-m +1
     D = similar(A, lastlength(A)-m+1, N)
     for i = 1:N
-        D[:,i] = distance_profile(getwindow(B, m, i), A)
+        distance_profile!(D[!,i], Euclidean(), getwindow(B, m, i), A)
     end
     D
 end
@@ -328,8 +337,8 @@ end
 Summarize time series `T` by extracting `k` snippets of length `S`
 The parameter `m` controls the window length used internally.
 """
-function snippets(T, k, S; m = max(S÷10, 4))
-    D = mpdist_profile(T,S,m)
+function snippets(T, k, S, d=Euclidean(); m = max(S÷10, 4))
+    D = mpdist_profile(T,S,m,d)
     Q = fill(Inf, length(D[1]))
     n = length(T)
     minI = 0

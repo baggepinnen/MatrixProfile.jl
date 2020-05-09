@@ -8,7 +8,7 @@ normdist = (x,y)->norm(znorm(x)-znorm(y))
 
 function naive_matrix_profile(A,B,m)
     res = map(1:length(B)-m+1) do i
-        findmin(distance_profile(getwindow(B,m,i), A))
+        findmin(distance_profile(Euclidean(), getwindow(B,m,i), A))
     end
     Profile(B,getindex.(res, 1), getindex.(res, 2), m, A)
 end
@@ -41,7 +41,7 @@ end
 
                     my,sy = MatrixProfile.running_mean_std(y, w)
                     QT = window_dot(getwindow(x,w,1), y)
-                    D = distance_profile(QT, mx,sx,my,sy,w)
+                    D = distance_profile(Euclidean(), QT, mx,sx,my,sy,w)
                     @test D[1] ≈ normdist(x[1:w], y[1:w])        atol=1e-5
                     @test D[2] ≈ normdist(x[1:w], y[1 .+ (1:w)]) atol=1e-5
                     @test D[5] ≈ normdist(x[1:w], y[4 .+ (1:w)]) atol=1e-5
@@ -56,7 +56,7 @@ end
 
        Q = randn(5)
        T = [randn(5); Q; randn(5)]
-       D = MatrixProfile.distance_profile(Q,T)
+       D = MatrixProfile.distance_profile(Euclidean(), Q, T)
        @test D[6] < 1e-6
        @test D[1] ≈ norm(znorm(Q) - znorm(T[1:5]))
     end
@@ -172,7 +172,7 @@ end
        p = mpdist_profile([A; B], 50, 5)
        @test_nowarn plot(p)
 
-       profile, snips, Cfracs = snippets([A; B], 2, 50, 5)
+       profile, snips, Cfracs = snippets([A; B], 2, 50, m=5)
        @test_nowarn plot(profile, snips)
 
    end

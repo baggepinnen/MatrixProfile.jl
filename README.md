@@ -10,7 +10,7 @@ Time-series analysis using the matrix profile. The matrix profile `P` tells you 
 This package is not yet registered. Install with
 ```julia
 using Pkg
-pkg"add https://github.com/baggepinnen/SlidingDistancesBase.jl#master https://github.com/baggepinnen/MatrixProfile.jl"
+pkg"add https://github.com/baggepinnen/MatrixProfile.jl"
 ```
 
 ## Usage
