@@ -23,8 +23,7 @@ function mpdist(MP::AbstractArray, th::Real, N::Int)
     elseif length(MP) >= k
         return partialsort(MP, k)
     else
-        MP = filter(isfinite, MP) # Do not inplace this
-        return maximum(MP)
+        return maximum(filter(isfinite, MP)) # Do not inplace this
     end
 end
 
@@ -85,11 +84,6 @@ function mpdist_profile(
     end
 end
 
-function mpdistmat(A::AbstractVector, B::AbstractVector, m::Int, d)
-    N = lastlength(B)-m +1
-    D = similar(A, lastlength(A)-m+1, N)
-    mpdistmat!(D, A::AbstractVector, B::AbstractVector, m::Int, d)
-end
 function mpdistmat!(D, A::AbstractVector, B::AbstractVector, m::Int, d)
     N = lastlength(B)-m +1
     for i = 1:N # Not thread safe
