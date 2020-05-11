@@ -37,6 +37,9 @@ function motifs(p::Profile, k, found_motifs = Motif[]; r=2, th = p.m, dist = Euc
     remove_found_motifs!(P, found_motifs, th)
     onsets = findall(<=((d + 1e-5)*r), P)
     i ∈ onsets || push!(onsets, i)
+    onsets = filter(onsets) do o
+        o == i || abs(o-i) >= th
+    end
     sort!(onsets)
     push!(found_motifs, Motif(Subsequence(p, onsets, "Motif")))
     motifs(p::Profile, k, found_motifs; r=r, th=th, dist=dist)
