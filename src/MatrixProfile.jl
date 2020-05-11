@@ -39,7 +39,7 @@ function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true)
     D    = distance_profile(Euclidean(), QT, μ, σ, m)
     P    = copy(D)
     I    = ones(Int, l)
-    prog = Progress((l - 1) ÷ 10, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
+    prog = Progress((l - 1) ÷ 5, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
     @inbounds for i = 2:l
         for j = l:-1:2
             @fastmath QT[j] = QT[j-1] - T[j-1] * T[i-1] + T[j+m-1] * T[i+m-1] # Consider updating to eqs. 3-7 https://www.cs.ucr.edu/~eamonn/SCAMP-camera-ready-final1.pdf
@@ -68,7 +68,7 @@ function matrix_profile(A::AbstractVector{<:Number}, T::AbstractVector{<:Number}
     D    = distance_profile(Euclidean(), QT, μA, σA, μT, σT, m)
     P    = copy(D)
     I    = ones(Int, lT)
-    prog = Progress((l - 1) ÷ 10, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
+    prog = Progress((l - 1) ÷ 5, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
     @inbounds for i = 2:l
         for j = lT:-1:2
             @fastmath QT[j] = QT[j-1] - T[j-1] * A[i-1] + T[j+m-1] * A[i+m-1]
