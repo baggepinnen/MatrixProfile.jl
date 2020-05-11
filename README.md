@@ -72,11 +72,8 @@ See `mpdist(A,B,m)`.
 ## Time series snippets
 To summarize a time series in the form of a small number of snippets, we have the function `snippets`.
 ```julia
-profile, snips, Cfracs = snippets(T, 3, 100)
-plot(
-    plot(snips, layout = (1, 3), size = (800, 200)),
-    plot(profile, snips, legend = false), layout=(2,1)
-)
+snips = snippets(T, 3, 100)
+plot(snips)
 ```
 ![snippets](figures/snippets.svg)
 

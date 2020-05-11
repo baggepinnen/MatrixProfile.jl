@@ -248,8 +248,8 @@ end
 
 
 include("motifs.jl")
-include("plotting.jl")
 include("mpdist.jl")
+include("plotting.jl")
 
 
 

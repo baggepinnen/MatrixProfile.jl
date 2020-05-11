@@ -172,8 +172,8 @@ end
        p = mpdist_profile([A; B], 50, 5)
        @test_nowarn plot(p)
 
-       profile, snips, Cfracs = snippets([A; B], 2, 50, m=5)
-       @test_nowarn plot(profile, snips)
+       snips = snippets([A; B], 2, 50, m=5)
+       @test_nowarn plot(snips)
 
    end
 

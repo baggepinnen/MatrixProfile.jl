@@ -129,6 +129,18 @@ function snippets(T, k, S, d=Euclidean(); m = max(S÷10, 4), th=S)
     end
 
     profile = Profile(T,tot_min,Int[],S,nothing)
-    mot = Subsequence(profile, onsets, "Snippet")
-    profile, mot, Cfracs
+    snips = Subsequence(profile, onsets, "Snippet")
+    Snippets(T,tot_min, snips, Cfracs, snippet_profiles, S)
 end
+
+
+struct Snippets
+    T
+    minprofile
+    snippets
+    Cfracs
+    profiles
+    S
+end
+
+segment(s::Snippets) = [findfirst(==(s.minprofile[i]), getindex.(s.profiles, i)) for i in eachindex(s.minprofile)]

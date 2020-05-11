@@ -75,3 +75,57 @@ end
         end
     end
 end
+
+
+@recipe function plot(s::Snippets)
+    snippets = s.snippets
+    snippets isa Vector || (snippets = [snippets])
+    # link --> [:x :none :x :none]
+    layout --> 4
+    @series begin
+        title --> "T"
+        label --> "T"
+        subplot --> 1
+        s.T isa AbstractVector{<:Number} ? s.T : reduce(hcat, s.T)'
+    end
+    @series begin
+        title --> "Minimum profile"
+        subplot --> 3
+        s.minprofile
+    end
+
+
+    inds = 0:s.S-1
+    linewidth --> 2
+    for (j,m) in enumerate(snippets)
+        @series begin
+            title --> "T"
+            group := j
+            label --> string(subseqtype(m), " ", j)
+            subplot := 1
+            _append_inf(onsets(m)' .+ inds), _append_inf(reduce(hcat, seqs(m)))
+        end
+    end
+    @series begin # This is a dummy series to make colors correct
+        subplot := 2
+        label = ""
+        [Inf]
+    end
+    for (j,s) in enumerate(snippets)
+        title --> subseqtype(s)
+        @series begin
+            legend --> false
+            group := j
+            label --> string(subseqtype(s), " ", j)
+            subplot := 2
+            _append_inf(reduce(hcat, seqs(s)))
+        end
+    end
+    seg = segment(s)
+    @series begin
+        title := "Assignment"
+        subplot := 4
+        seg
+    end
+
+end
