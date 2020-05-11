@@ -1,7 +1,7 @@
 name = "MatrixProfile"
 uuid = "24e37439-14ec-4097-bda3-6a65822e2305"
 authors = ["Fredrik Bagge Carlson"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"

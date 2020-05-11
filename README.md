@@ -7,10 +7,10 @@ Time-series analysis using the matrix profile. The matrix profile `P` tells you 
 
 
 ### Installation
-This package is not yet registered. Install with
+This package is registered and can be installed with
 ```julia
 using Pkg
-pkg"add https://github.com/baggepinnen/MatrixProfile.jl"
+pkg"add MatrixProfile"
 ```
 
 ## Usage
