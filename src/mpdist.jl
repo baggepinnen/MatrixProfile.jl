@@ -60,10 +60,11 @@ function mpdist_profile(
     A::AbstractVector,
     m::Int,
     d = Euclidean();
-    D = mpdistmat(A, B, m, d),
+    D = similar(A, lastlength(A)-m+1, lastlength(B)-m+1),
     moving_means = similar(D),
     m_profile = similar(D, 2size(D,2))
 )
+    mpdistmat!(D,A,B,m,d)
     th = 0.05
     lA = lastlength(A)
     lB = lastlength(B)
@@ -77,13 +78,7 @@ function mpdist_profile(
     end
 
     l = lA - lB + 1
-    # left_marg = similar(D, cols)
-
-    # @show length(m_profile), cols, size(moving_means,2), length(right_margs)
-
     map(1:l) do i
-        # right_marg = getwindow(right_margs, cols, i)
-        # @show i,l,cols
         m_profile[1:cols] .= @view moving_means[i+cols÷2, :] # left marg
         copyto!(m_profile, cols+1, right_margs, i, cols)
         mpdist(m_profile, th, 2 * lastlength(B))
@@ -93,6 +88,10 @@ end
 function mpdistmat(A::AbstractVector, B::AbstractVector, m::Int, d)
     N = lastlength(B)-m +1
     D = similar(A, lastlength(A)-m+1, N)
+    mpdistmat!(D, A::AbstractVector, B::AbstractVector, m::Int, d)
+end
+function mpdistmat!(D, A::AbstractVector, B::AbstractVector, m::Int, d)
+    N = lastlength(B)-m +1
     for i = 1:N # Not thread safe
         distance_profile!(D[!,i], Euclidean(), getwindow(B, m, i), A)
     end
@@ -107,18 +106,19 @@ end
 Summarize time series `T` by extracting `k` snippets of length `S`
 The parameter `m` controls the window length used internally.
 """
-function snippets(T, k, S, d=Euclidean(); m = max(S÷10, 4))
+function snippets(T, k, S, d=Euclidean(); m = max(S÷10, 4), th=S)
     D = mpdist_profile(T,S,m,d)
-    Q = fill(Inf, length(D[1]))
-    n = length(T)
+    INF = typemax(floattype(T))
+    Q = fill(INF, length(D[1]))
+    n = lastlength(T)
     minI = 0
     onsets = zeros(Int, k)
     snippet_profiles = similar(D, k)
     for j = 1:k
-        minA = Inf
+        minA = INF
         for i = 1:length(D)
             A = sum(min.(D[i], Q))
-            if A < minA
+            if A < minA #&& all(abs.(((i-1)*S+1) .- onsets[1:j-1]) .> th)
                 minA = A
                 minI = i
             end
@@ -127,11 +127,11 @@ function snippets(T, k, S, d=Euclidean(); m = max(S÷10, 4))
         Q .= min.(D[minI], Q)
         onsets[j] = (minI-1)*S+1
     end
-    tot_min = reduce((x,y)->min.(x,y), snippet_profiles, init=Inf*D[1])
+    tot_min = reduce((x,y)->min.(x,y), snippet_profiles, init=snippet_profiles[1])
     Cfracs = map(1:k) do j
         spj = snippet_profiles[j]
         f = count(spj .== tot_min)
-        Cfrac = f/(n-S+1)
+        Cfrac = f/length(spj)
     end
 
     profile = Profile(T,tot_min,Int[],S,nothing)
