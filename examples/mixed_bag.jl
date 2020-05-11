@@ -19,19 +19,35 @@ plot(profile, mot, legend=false)
 plot(mot)
 
 
+## Walking styles
+T = parse.(Float32, readlines("PAMAP_Subject4_NormalWalking_NordicWalking_17001_500.txt"))
+T = T[1:2:end]
+profile, snips, Cfracs = snippets(T, 4, 200)
+plot(plot(snips, size = (800, 200), xrotation=45), plot(profile, snips, legend = false, link=:none))
+
+profile = matrix_profile(T, 50)
+mot = motifs(profile, 4, r=3)
+plot(mot)
+plot(profile, mot, legend=false)
+
+
 ## Robot dog
 T = parse.(Float32, readlines("RoboticDogActivityY_64_4000_400.txt"))
 profile, snips, Cfracs = snippets(T, 4, 100)
 plot(plot(snips, size = (800, 200), xrotation=45), plot(profile, snips, legend = false, link=:none))
 
-profile = matrix_profile(T, 100)
+profile = matrix_profile(T, 50)
 mot = motifs(profile, 4, r=2, th=200)
 plot(profile, mot, legend=false)
 plot(mot)
 
 using DynamicAxisWarping
+using MatrixProfile: znorm
 
-profile = matrix_profile(T, 100, DTWDistance(DTW(3)))
-mot = motifs(profile, 4, r=2, th=200)
-plot(profile, mot, legend=false)
-plot(mot)
+dist = DTWDistance(DTW(5))
+normalizer = Val(ZNormalizer)
+profile2 = matrix_profile(T, 50, dist, normalizer=normalizer)
+
+mot2 = motifs(profile2, 4, r=3, th=200, dist=(x,y)->dist(znorm(x),znorm(y)))
+plot(profile2, mot2, legend=false)
+plot(mot2)
