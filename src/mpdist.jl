@@ -18,12 +18,12 @@ The MP distance given a precomputed matrix profile, calculating `k` as `th*N` wh
 """
 function mpdist(MP::AbstractArray, th::Real, N::Int)
     k = ceil(Int, th*N)
-    filter!(isfinite, MP)
     if isempty(MP)
         return typemax(eltype(MP))
     elseif length(MP) >= k
         return partialsort(MP, k)
     else
+        MP = filter(isfinite, MP) # Do not inplace this
         return maximum(MP)
     end
 end
@@ -38,8 +38,13 @@ function mpdist_profile(T::AbstractVector,S::Int, m::Int, d=Euclidean())
     n = lastlength(T)
     pad = S * ceil(Int, n / S) - n
     T = [T;zeros(pad)]
+    N = S-m+1
+    D = similar(T, lastlength(T)-m+1, N)
+    moving_means = similar(D)
+    m_profile = similar(T, 2N)
+
     @showprogress 1 "MP dist profile" map(1:S:n-S) do i
-        d = mpdist_profile(getwindow(T,S,i), T, m, d)
+        d = mpdist_profile(getwindow(T,S,i), T, m, d; D=D, moving_means=moving_means, m_profile=m_profile)
     end
 end
 
@@ -50,36 +55,40 @@ end
 
 MP distance profile between two time series using window length `m`.
 """
-function mpdist_profile(A::AbstractVector, B::AbstractVector, m::Int, d=Euclidean())
-    # % A the longer time series
-    # % B the shorter time series
+function mpdist_profile(
+    B::AbstractVector,
+    A::AbstractVector,
+    m::Int,
+    d = Euclidean();
+    D = mpdistmat(A, B, m, d),
+    moving_means = similar(D),
+    m_profile = similar(D, 2size(D,2))
+)
     th = 0.05
-    l1 = lastlength(A)
-    l2 = lastlength(B)
-    if l1 < l2
-        A, B = B, A
-    end
+    lA = lastlength(A)
+    lB = lastlength(B)
+    lA >= lB ||
+    throw(ArgumentError("The first argument should be shorter than the second."))
 
-    D               = mpdistmat(A, B, m, d)
-    rows, cols      = size(D)
-    moving_means    = similar(D)
-    right_marginals = vec(minimum(D, dims=2))
+    rows, cols = size(D)
+    right_margs = vec(minimum(D, dims = 2))
     for i = 1:cols
-        moving_mean!(moving_means[!,i], D[!,i], cols)
+        moving_mean!(moving_means[!, i], D[!, i], cols)
     end
 
-    l                = lastlength(A)-lastlength(B)+1
-    N_right_marginal = lastlength(B)-m+1
-    left_marginal    = similar(D, N_right_marginal)
+    l = lA - lB + 1
+    # left_marg = similar(D, cols)
+
+    # @show length(m_profile), cols, size(moving_means,2), length(right_margs)
 
     map(1:l) do i
-        right_marginal = getwindow(right_marginals, N_right_marginal, i)
-        left_marginal .= @view moving_means[i+cols÷2,:]
-        m_profile = [left_marginal; right_marginal]
-        mpdist(m_profile, th, 2length(B))
+        # right_marg = getwindow(right_margs, cols, i)
+        # @show i,l,cols
+        m_profile[1:cols] .= @view moving_means[i+cols÷2, :] # left marg
+        copyto!(m_profile, cols+1, right_margs, i, cols)
+        mpdist(m_profile, th, 2 * lastlength(B))
     end
 end
-
 
 function mpdistmat(A::AbstractVector, B::AbstractVector, m::Int, d)
     N = lastlength(B)-m +1
