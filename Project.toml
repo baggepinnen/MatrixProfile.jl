@@ -15,6 +15,7 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
 DSP = "0.6"
+Distances = "0.8"
 LoopVectorization = "0.7.4"
 ProgressMeter = "1.2"
 RecipesBase = "0.8, 1.0"
