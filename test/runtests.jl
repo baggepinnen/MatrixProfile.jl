@@ -2,13 +2,13 @@ using MatrixProfile
 using Test, Statistics, LinearAlgebra, Plots
 
 using SlidingDistancesBase
-using MatrixProfile: znorm, window_dot, Profile
+using MatrixProfile: Profile
 
 normdist = (x,y)->norm(znorm(x)-znorm(y))
 
 function naive_matrix_profile(A,B,m)
     res = map(1:length(B)-m+1) do i
-        findmin(distance_profile(Euclidean(), getwindow(B,m,i), A))
+        findmin(distance_profile(ZEuclidean(), getwindow(B,m,i), A))
     end
     Profile(B,getindex.(res, 1), getindex.(res, 2), m, A)
 end
@@ -22,44 +22,6 @@ end
 
 
 @testset "MatrixProfile.jl" begin
-
-
-    @testset "running stats" begin
-        @info "Testing running stats"
-        for l1 = [20,30]
-            for l2 = [20,30]
-                x = randn(l1)
-                y = randn(l2)
-                for w = 2:10
-                    mx,sx = MatrixProfile.running_mean_std(x, w)
-                    @test length(mx) == length(sx) == length(x)-w+1
-                    @test mx[1] ≈ mean(x[1:w])
-                    @test sx[1] ≈ std(x[1:w], corrected=false)
-
-                    @test mx[2] ≈ mean(x[2:w+1])
-                    @test sx[2] ≈ std(x[2:w+1], corrected=false)
-
-                    my,sy = MatrixProfile.running_mean_std(y, w)
-                    QT = window_dot(getwindow(x,w,1), y)
-                    D = distance_profile(Euclidean(), QT, mx,sx,my,sy,w)
-                    @test D[1] ≈ normdist(x[1:w], y[1:w])        atol=1e-5
-                    @test D[2] ≈ normdist(x[1:w], y[1 .+ (1:w)]) atol=1e-5
-                    @test D[5] ≈ normdist(x[1:w], y[4 .+ (1:w)]) atol=1e-5
-
-                end
-            end
-        end
-    end
-
-    @testset "distance profile" begin
-        @info "Testing distance profile"
-
-       Q = randn(5)
-       T = [randn(5); Q; randn(5)]
-       D = MatrixProfile.distance_profile(Euclidean(), Q, T)
-       @test D[6] < 1e-6
-       @test D[1] ≈ norm(znorm(Q) - znorm(T[1:5]))
-    end
 
    t = range(0, stop=1, step=1/10)
    y0 = sin.(2pi .* t)
@@ -112,13 +74,9 @@ end
            profile2.I[i] ∈ (51,112) || profile2.I[i] == profile.I[i]
        end
 
-
-
        # Test generic between two series
        profile4 = matrix_profile(T, T, length(y0), normdist)
        @test all(profile4.P .< 1e-6)
-
-
    end
 
 
@@ -155,7 +113,6 @@ end
 
    @testset "mpdist" begin
        @info "Testing mpdist"
-
 
        t = 1:0.01:3
        A = @. sin(2pi * t) + 0.1 * randn()

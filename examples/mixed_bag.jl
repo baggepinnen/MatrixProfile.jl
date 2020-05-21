@@ -4,14 +4,14 @@ datapath = "/home/fredrikb/Downloads/MixedBag/"
 cd(datapath)
 
 ## Some data
-T = parse.(Int, split(join(Char.(read("01911m_02019m_III_7680_200.txt"))), ','))
+T = parse.(Float64, split(join(Char.(read("01911m_02019m_III_7680_200.txt"))), ','))
 snips = snippets(T, 3, 200, m=50)
 plot(snips)
 
 
 ## Power demand
-T = parse.(Float32, readlines("Powerdemand_12_4500_200.txt"))
-snips = snippets(T, 4, 24, m=6)
+T = parse.(Float64, readlines("Powerdemand_12_4500_200.txt"))
+snips = snippets(T, 4, 24, m=24)
 plot(snips)
 
 profile = matrix_profile(T, 24)
@@ -21,7 +21,7 @@ plot(mot)
 
 
 ## Walking styles
-T = parse.(Float32, readlines("PAMAP_Subject4_NormalWalking_NordicWalking_17001_500.txt"))
+T = parse.(Float64, readlines("PAMAP_Subject4_NormalWalking_NordicWalking_17001_500.txt"))
 T = T[1:2:end]
 snips = snippets(T, 4, 200)
 plot(snips)
@@ -33,7 +33,7 @@ plot(profile, mot, legend=false)
 
 
 ## Robot dog
-T = parse.(Float32, readlines("RoboticDogActivityY_64_4000_400.txt"))
+T = parse.(Float64, readlines("RoboticDogActivityY_64_4000_400.txt"))
 snips = snippets(T, 4, 100)
 plot(snips)
 
