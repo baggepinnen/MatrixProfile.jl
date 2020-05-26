@@ -59,7 +59,7 @@ Also see the function `anomalies(profile)` to find anomalies in the data, someti
 
 
 ## Arbitrary metrics and input types
-The matrix profile can be computed for any object that has a "time axis" as a notion of distance. The examples so far have dealt with one-dimensional arrays of real numbers with the Euclidean metric, for which the matrix profile is particularly efficient to compute. We do not have to limit ourselves to this setting, though, and `matrix_profile` accepts any array-like object and any distance function on the form `dist(x,y)`. The interface looks like this
+The matrix profile can be computed for any sequence of things that has a "time axis" and a notion of distance. The examples so far have dealt with one-dimensional arrays of real numbers with the Euclidean metric, for which the matrix profile is particularly efficient to compute. We do not have to limit ourselves to this setting, though, and `matrix_profile` accepts any array-like object and any distance function on the form `dist(x,y)`. The interface looks like this
 ```julia
 profile = matrix_profile(T, m, dist)
 ```
