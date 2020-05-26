@@ -34,6 +34,7 @@ All MP distance profiles between subsequences of length `S` in `T` using interna
 """
 function mpdist_profile(T::AbstractVector,S::Int, m::Int, d::DT = ZEuclidean()) where DT
     S >= m || throw(ArgumentError("S should be > m"))
+    SlidingDistancesBase.DSP.FFTW.set_num_threads(1)
     n = lastlength(T)
     pad = S * ceil(Int, n / S) - n
     T = [T;zeros(eltype(T), pad)]
@@ -53,7 +54,7 @@ end
 
 
 """
-    mpdist_profile(A::AbstractVector, B::AbstractVector, m::Int, [d])
+    mpdist_profile(A::AbstractVector, B::AbstractVector, m::Int, [d = ZEuclidean()])
 
 MP distance profile between two time series using window length `m`.
 """
@@ -89,7 +90,7 @@ end
 
 function mpdistmat!(D, A::AbstractVector, B::AbstractVector, m::Int, d)
     N = lastlength(B)-m +1
-    for i = 1:N # Not thread safe
+    Threads.@threads for i = 1:N # Not thread safe for more than one FFTW thread
         distance_profile!(D[!,i], ZEuclidean(), getwindow(B, m, i), A)
     end
     D
