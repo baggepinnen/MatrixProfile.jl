@@ -124,8 +124,8 @@ end
        # plot(p1)
        # plot!(p2)
        @test mpdist(A,B, m) > 0
-       @test mpdist(A,A, m) < eps()
-       @test mpdist(B,B, m) < eps()
+       @test mpdist(A,A, m) < 10sqrt(eps())
+       @test mpdist(B,B, m) < 10sqrt(eps())
        p = mpdist_profile([A; B], 50, 5)
        @test_nowarn plot(p)
 
