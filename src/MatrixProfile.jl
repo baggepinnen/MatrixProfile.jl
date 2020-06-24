@@ -53,7 +53,11 @@ function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true)
     Profile(T, P, I, m, nothing)
 end
 
+"""
+    profile = matrix_profile(A, T, m, dist=ZEuclidean(); showprogress=true)
 
+Mutual matrix profile between `A` and `T`.
+"""
 function matrix_profile(A::AbstractVector{<:Number}, T::AbstractVector{<:Number}, m::Int; showprogress=true)
     n   = length(A)
     l   = n-m+1

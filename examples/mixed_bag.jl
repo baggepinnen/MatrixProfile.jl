@@ -43,16 +43,24 @@ plot(profile, mot, legend=false)
 plot(mot)
 
 using DynamicAxisWarping
-using MatrixProfile: znorm
 
-dist = DTWDistance(DTW(3))
+dist = DTW(3)
 normalizer = Val(ZNormalizer)
 profile2 = matrix_profile(T, 50, dist, normalizer=normalizer)
 
-mot2 = motifs(profile2, 4, r=3, th=200, dist=(x,y)->dist(znorm(x),znorm(y)))
+
+using Distances
+struct ZWrapper{D} <: Distances.Metric
+    dist::D
+end
+function Distances.evaluate(d::ZWrapper, x, y)
+    evaluate(d.dist, znorm(x), znorm(y))
+end
+(d::ZWrapper)(x,y) = evaluate(d,x,y)
+
+mot2 = motifs(profile2, 4, r=3, th=200, dist=ZWrapper(dist))
 plot(profile2, mot2, legend=false)
 plot(mot2)
-
 
 snips = snippets(T, 4, 100, dist)
 plot(snips)
