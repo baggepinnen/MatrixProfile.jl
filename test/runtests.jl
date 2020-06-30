@@ -28,7 +28,7 @@ end
    T = [randn(50); y0; randn(50); y0; randn(50)]
    A = sign.([randn(50); y0; randn(50); y0; randn(50)])[1:end÷2] .+ 0.01.*randn.()
 
-   profile = matrix_profile(T, length(y0))
+   profile = @inferred matrix_profile(T, length(y0))
    P,I = profile.P, profile.I
    @test_nowarn plot(profile)
    # plot(T, layout=2)
@@ -40,7 +40,7 @@ end
 
 
    # Test Euclidean between two series
-   profile3 = matrix_profile(T, T, length(y0))
+   profile3 = @inferred matrix_profile(T, T, length(y0))
    @test all(profile3.P .< 1e-6)
 
 
@@ -52,14 +52,14 @@ end
 
 
    profile7n = naive_matrix_profile(T, A, length(y0))
-   profile7n2 = matrix_profile(T, A, length(y0), normdist)
+   profile7n2 = @inferred matrix_profile(T, A, length(y0), normdist)
    profile7 = matrix_profile(T, A, length(y0))
    @test profeq(profile7, profile7n)
    @test profeq(profile7n, profile7n2)
 
    profile8n = naive_matrix_profile(A, T, length(y0))
-   profile8n2 = matrix_profile(A, T, length(y0), normdist)
-   profile8 = matrix_profile(A, T, length(y0))
+   profile8n2 = @inferred matrix_profile(A, T, length(y0), normdist)
+   profile8 = @inferred matrix_profile(A, T, length(y0))
    @test profeq(profile8, profile8n)
    @test profeq(profile8n, profile8n2)
 
@@ -68,14 +68,14 @@ end
        @info "Testing Generic matrix profile"
 
        # Test generic one serie
-       profile2 = matrix_profile(T, length(y0), normdist)
+       profile2 = @inferred matrix_profile(T, length(y0), normdist)
        @test profile2.P ≈  profile.P
        @test all(eachindex(profile.I)) do i
            profile2.I[i] ∈ (51,112) || profile2.I[i] == profile.I[i]
        end
 
        # Test generic between two series
-       profile4 = matrix_profile(T, T, length(y0), normdist)
+       profile4 = @inferred matrix_profile(T, T, length(y0), normdist)
        @test all(profile4.P .< 1e-6)
    end
 
@@ -123,13 +123,14 @@ end
        # partialsort([p1.P; p2.P], 20)
        # plot(p1)
        # plot!(p2)
-       @test mpdist(A,B, m) > 0
+       @test @inferred(mpdist(A,B, m)) > 0
        @test mpdist(A,A, m) < 10sqrt(eps())
        @test mpdist(B,B, m) < 10sqrt(eps())
-       p = mpdist_profile([A; B], 50, 5)
+       T = [A; B]
+       p = mpdist_profile(T, 50, 5)
        @test_nowarn plot(p)
 
-       snips = snippets([A; B], 2, 50, m=5)
+       snips = snippets(T, 2, 50, m=5)
        @test_nowarn plot(snips)
 
    end

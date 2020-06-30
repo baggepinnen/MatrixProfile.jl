@@ -45,7 +45,7 @@ plot(mot)
 using DynamicAxisWarping
 
 dist = DTW(3)
-normalizer = Val(ZNormalizer)
+normalizer = ZNormalizer
 profile2 = matrix_profile(T, 50, dist, normalizer=normalizer)
 
 

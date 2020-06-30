@@ -32,14 +32,14 @@ end
 
 All MP distance profiles between subsequences of length `S` in `T` using internal window length `m`.
 """
-function mpdist_profile(T::AbstractVector,S::Int, m::Int, d::DT = ZEuclidean()) where DT
+function mpdist_profile(T::AbstractVector{TT},S::Int, m::Int, d::DT = ZEuclidean()) where {TT,DT}
     S >= m || throw(ArgumentError("S should be > m"))
     SlidingDistancesBase.DSP.FFTW.set_num_threads(1)
-    n = lastlength(T)
+    n = length(T)
     pad = S * ceil(Int, n / S) - n
-    T = [T;zeros(eltype(T), pad)]
+    append!(T,zeros(TT, pad)) # vcat was not type stable
     N = S-m+1
-    D = Matrix{float(eltype(T))}(undef, lastlength(T)-m+1, N)
+    D = Matrix{float(TT)}(undef, length(T)-m+1, N)
     sliding_means = similar(D)
     m_profile = similar(D, 2N)
 
