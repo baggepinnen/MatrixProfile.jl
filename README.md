@@ -68,6 +68,9 @@ If `T` is a high-dimensional array, time is considered to be the last axis. `T` 
 ## MP distance
 See `mpdist(A,B,m)`.
 
+## Segmentation / change-point detection
+The most likely segmentation of a time series into two is calculated using `segment(p::Profile)`. A more detailed analysis can be performed using `sp = segment_profile(p::Profile)` which returns a vector of the same length as `p`, where a low value at index `i` indicates that few nearest-neighbor arcs pass over index `i`, `sp` thus form sort-of a "segmentation profile".
+
 
 ## Time series snippets
 To summarize a time series in the form of a small number of snippets, we have the function `snippets`.
@@ -88,5 +91,6 @@ This function can take a while to run for long time-series, for `length(T) = 15k
 
 ## References
 - The STOMP algorithm used in `matrix_profile` is detailed in the paper [Matrix profile II](https://www.cs.ucr.edu/~eamonn/STOMP_GPU_final_submission_camera_ready.pdf).
+- The algorithm used in `segment` and `segment_profile` comes from [Matrix Profile VIII](https://www.cs.ucr.edu/~eamonn/Segmentation_ICDM.pdf)
 - The MP distance is described in [Matrix profile XII](https://www.cs.ucr.edu/~eamonn/MPdist_Expanded.pdf)
 - The algorithm for extraction of time-series snippets comes from [Matrix profile XIII](https://www.cs.ucr.edu/~eamonn/Time_Series_Snippets_10pages.pdf)

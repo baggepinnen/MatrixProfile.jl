@@ -136,6 +136,30 @@ end
    end
 
 
+   @testset "segment_profile and segmentation" begin
+       @info "Testing segment_profile and segmentation"
+
+        @test MatrixProfile.expected_arc(0,10) == 0
+        @test MatrixProfile.expected_arc(9,10) == 0
+        @test MatrixProfile.expected_arc(9/2,10) ≈ 5
+
+        x = randn(1000)
+        p = matrix_profile(x, 20)
+        s = segment_profile(p)
+        @test minimum(s) > 0.5
+
+        x = [sin.(1:0.1:100); sign.(sin.(1:0.1:100))]
+        x .+= 0.01 .* randn.()
+        p = p = matrix_profile(x, 20)
+        s = segment_profile(p)
+        val, ind = findmin(s)
+        @test abs(ind-length(s)÷2) < 10
+        @test val < 0.01
+
+        @test segment(p) == ind
+   end
+
+
  end
 
 

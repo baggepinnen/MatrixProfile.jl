@@ -27,6 +27,15 @@ seqs(m::Array{<:Subsequence}) = getfield.(m, :seq)
 seqlength(m::Array{<:Subsequence}) = length(m[1].seq)
 subseqtype(m::Array{<:Subsequence}) = subseqtype(m[1])
 
+"""
+    motifs(p::Profile, k, found_motifs = Motif[]; r=2, th = p.m, dist = ZEuclidean())
+
+- `k` is the number of motifs to extract
+- `r` controls how similar two windows must be to belong to the same motif. A higher value leads to more windows being grouped together.
+- `th` is a threshold on how nearby in time two motifs are allowed to be.
+
+Also see the function `anomalies(profile)` to find anomalies in the data, sometimes called *discords*.
+"""
 function motifs(p::Profile, k, found_motifs = Motif[]; r=2, th = p.m, dist = ZEuclidean())
     length(found_motifs) == k && return found_motifs
     m = p.m
@@ -38,7 +47,7 @@ function motifs(p::Profile, k, found_motifs = Motif[]; r=2, th = p.m, dist = ZEu
     perm = sortperm(P)
     onsets = [perm[1]]
     j = 2
-    while P[perm[j]] < (d + 1e-5)*r
+    while P[perm[j]] < (d + 1e-5)*r && j < length(perm)
         all(abs.(perm[j] .- onsets) .> th) && push!(onsets, perm[j])
         j += 1
     end

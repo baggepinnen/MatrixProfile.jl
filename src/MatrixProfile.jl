@@ -10,7 +10,7 @@ using SlidingDistancesBase
 import SlidingDistancesBase: floattype, lastlength, distance_profile, distance_profile!, window_dot
 export Euclidean, ZEuclidean
 
-export matrix_profile, distance_profile, motifs, anomalies, mpdist, mpdist_profile, onsets, snippets, seqs, resample
+export matrix_profile, distance_profile, motifs, anomalies, mpdist, mpdist_profile, onsets, snippets, seqs, resample, segment, segment_profile
 
 
 struct Profile{TT,TP,QT}
@@ -146,6 +146,7 @@ end
 
 include("motifs.jl")
 include("mpdist.jl")
+include("segment.jl")
 include("plotting.jl")
 
 
