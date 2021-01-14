@@ -154,7 +154,7 @@ end
         s = segment_profile(p)
         val, ind = findmin(s)
         @test abs(ind-length(s)÷2) < 10
-        @test val < 0.01
+        @test val < 0.02
 
         @test segment(p) == ind
    end
