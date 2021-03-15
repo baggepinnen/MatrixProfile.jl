@@ -55,7 +55,7 @@ plot(profile, mot)
 - `th` is a threshold on how nearby in time two motifs are allowed to be.
 ![motif_plot](figures/motifs.svg)
 
-Also see the function `anomalies(profile)` to find anomalies in the data, sometimes called *discords*.
+Also see the function `anomalies(profile)` to find anomalies (or outliers) in the data, sometimes called *discords*.
 
 
 ## Arbitrary metrics and input types
