@@ -60,8 +60,7 @@ end
 function Subsequence(p::Profile, onsets, type::String = "Subsequence")
     m    = p.m
     inds = 0:m-1
-    n    = length(onsets)
-    vecs = map(1:n) do i
+    vecs = map(eachindex(onsets)) do i
         p.T[inds .+ onsets[i]] # Don't use getwindow
     end
     Subsequence.(vecs, onsets, type)
