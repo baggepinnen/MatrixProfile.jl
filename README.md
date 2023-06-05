@@ -88,9 +88,26 @@ The arguments to `snippets` are
 
 This function can take a while to run for long time-series, for `length(T) = 15k`, it takes less than a minute on a laptop. The time depends strongly on the internal window length parameter.
 
+## MASS
+
+`mass(x::AbstractVector{T}, y::AbstractVector{T}, k)`
+- `x`: Data
+- `y`: query
+- `k`: window size, must be at least `length(y)`
+
+## DAMP
+`damp(T, m, ind = length(T) ÷ 10)`
+
+DAMP algorithm for anomaly detection in time series with repeated patterns.
+- `T`: Time series
+- `m`: Subsequence length (choose as approximate period of repeating patterns)
+- `ind`: Location of split point between training and test data, defaults to 10% of the data.
+
+Returns the left-approximate Matrix Profile. Large values indicate anomalies.
 
 ## References
 - The STOMP algorithm used in `matrix_profile` is detailed in the paper [Matrix profile II](https://www.cs.ucr.edu/~eamonn/STOMP_GPU_final_submission_camera_ready.pdf).
 - The algorithm used in `segment` and `segment_profile` comes from [Matrix Profile VIII](https://www.cs.ucr.edu/~eamonn/Segmentation_ICDM.pdf)
 - The MP distance is described in [Matrix profile XII](https://www.cs.ucr.edu/~eamonn/MPdist_Expanded.pdf)
 - The algorithm for extraction of time-series snippets comes from [Matrix profile XIII](https://www.cs.ucr.edu/~eamonn/Time_Series_Snippets_10pages.pdf)
+- The DAMP algorithm comes from https://www.cs.ucr.edu/~eamonn/DAMP_long_version.pdf

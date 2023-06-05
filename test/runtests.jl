@@ -104,7 +104,15 @@ end
        @test onsets(an)[1] == argmax(profile.P)
        @test_nowarn plot(an)
        @test MatrixProfile.seqlength(an) == length(y0)
+   end
 
+   @testset "damp" begin
+        @info "Testing damp"
+        t = 0:0.1:100
+        T = sin.(t)
+        T[500:550] .*= 0
+        aMP = damp(T, 100, 200)
+        @test argmax(aMP.P) ≈ 500 atol=1
    end
 
 
