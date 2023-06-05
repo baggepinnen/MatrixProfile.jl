@@ -178,16 +178,17 @@ function mass(x::AbstractVector{T}, y::AbstractVector{T}, k=length(y)) where T
     P = @views plan_rfft(x[1:k])
     O = zero(T)
     local iP
+    Y = P * y
+    Z = similar(Y)
     for outer j = 1:k-m+1:n-k+1
         X = P * x[j:j+k-1]
-        Y = P * y
-        Z = X.*Y
+        Z .= X.*Y
         if j == 1
             iP = @views plan_irfft(Z, length(y))
         end
         z = iP * Z
         
-        d = @. sqrt(max(2*(m-(z[m:k]-m*μx[m+j-1:j+k-1]*μy)/(σx[m+j-1:j+k-1]*σy)), O))
+        d = @views @. sqrt(max(2*(m-(z[m:k]-m*μx[m+j-1:j+k-1]*μy)/(σx[m+j-1:j+k-1]*σy)), O))
         append!(dist, d)
     end
     
@@ -197,7 +198,8 @@ function mass(x::AbstractVector{T}, y::AbstractVector{T}, k=length(y)) where T
         X = @views rfft(x[j+1:n])
         y = y[1:k]
         Y = rfft(y)
-        Z = X.*Y
+        Z = Y
+        Z .= X.*Y
         z = irfft(Z, length(y))
         
         @views d = @. sqrt(max(2*(m-(z[m:k]-m*μx[j+m:n]*μy)/(σx[j+m:n]*σy)), O))
