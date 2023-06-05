@@ -153,60 +153,68 @@ include("plotting.jl")
 using AbstractFFTs
 
 """
-    mass(x::AbstractVector{T}, y::AbstractVector{T}, k)
+    mass(Q::Vector, T::Vector)
+
+Compute the Z-normalized [`distance_profile`](@ref) using FFT. Equivalent to
+```
+d = distance_profile(ZEuclidean(), Q, T)
+```
 
 # Arguments:
-- `x`: Data
-- `y`: query
-- `k`: window size, must be at least `length(y)`
+- `Q`: query
+- `T`: Data
 """
-function mass(x::AbstractVector{T}, y::AbstractVector{T}, k=length(y)) where T
-    n = length(x)
-    m = length(y)
-    m <= k || throw(ArgumentError("k = $k is too small, must be at least length(y) = $m"))
-    dist = T[]
+mass(Q::AbstractVector, T::AbstractVector) = distance_profile(ZEuclidean(), Q, T)
+
+# The implementation below seems to perform much worse than the one above
+# function mass(y::AbstractVector{T}, x::AbstractVector{T}, k=length(y)) where T
+#     n = length(x)
+#     m = length(y)
+#     m <= k || throw(ArgumentError("k = $k is too small, must be at least length(y) = $m"))
+#     dist = T[]
     
-    μy = mean(y)
-    σy = std(y, corrected=false)
-    μx, σx = sliding_mean_std(x, m-1, 0)
-    @assert length(μx) == length(σx) == n
+#     μy = mean(y)
+#     σy = std(y, corrected=false)
+#     μx, σx = sliding_mean_std(x, m-1, 0)
+#     @assert length(μx) == length(σx) == n
        
-    y = reverse(y)
-    y = [y; zeros(T, length(m+1:k))]
+#     y = reverse(y)
+#     y = [y; zeros(T, length(m+1:k))]
     
-    j = 0
-    P = @views plan_rfft(x[1:k])
-    O = zero(T)
-    local iP
-    Y = P * y
-    Z = similar(Y)
-    for outer j = 1:k-m+1:n-k+1
-        X = P * x[j:j+k-1]
-        Z .= X.*Y
-        if j == 1
-            iP = @views plan_irfft(Z, length(y))
-        end
-        z = iP * Z
+#     j = 0
+#     P = @views plan_rfft(x[1:k])
+#     O = zero(T)
+#     local iP
+#     Y = P * y
+#     Z = similar(Y)
+#     for outer j = 1:k-m+1:n-k+1
+#         X = P * x[j:j+k-1]
+#         Z .= X.*Y
+#         if j == 1
+#             iP = @views plan_irfft(Z, length(y))
+#         end
+#         z = iP * Z
         
-        d = @views @. sqrt(max(2*(m-(z[m:k]-m*μx[m+j-1:j+k-1]*μy)/(σx[m+j-1:j+k-1]*σy)), O))
-        append!(dist, d)
-    end
+#         d = @views @. sqrt(max(2*(m-(z[m:k]-m*μx[m+j-1:j+k-1]*μy)/(σx[m+j-1:j+k-1]*σy)), O))
+#         append!(dist, d)
+#     end
     
-    j = j+k-m
-    k = n-j
-    if k >= m
-        X = @views rfft(x[j+1:n])
-        y = y[1:k]
-        Y = rfft(y)
-        Z = Y
-        Z .= X.*Y
-        z = irfft(Z, length(y))
+#     j = j+k-m
+#     k = n-j
+#     if k >= m
+#         error()
+#         X = @views rfft(x[j+1:n])
+#         y = y[1:k]
+#         Y = rfft(y)
+#         Z = Y
+#         Z .= X.*Y
+#         z = irfft(Z, length(y))
         
-        @views d = @. sqrt(max(2*(m-(z[m:k]-m*μx[j+m:n]*μy)/(σx[j+m:n]*σy)), O))
-        append!(dist, d)
-    end
-    return dist
-end
+#         @views d = @. sqrt(max(2*(m-(z[m:k]-m*μx[j+m:n]*μy)/(σx[j+m:n]*σy)), O))
+#         append!(dist, d)
+#     end
+#     return dist
+# end
 
 
 
@@ -271,14 +279,14 @@ function _dampb(T,m,i,BSF)
     prefix = nextpow(2, m) # Initial length of prefix
     while aMPi ≥ BSF
         if i-prefix+1 <= 1 #the search reaches the beginning of the time series
-            aMPi = minimum(mass(T[1:i],T[i:i+m-1]))
+            aMPi = minimum(mass(T[i:i+m-1], T[1:i]))
             if aMPi > BSF # Update the current best discord score
                 BSF = aMPi
             end
             break
         else
             # @show length(T), prefix, i, m
-            aMPi = minimum(mass(T[i-prefix+1:i],T[i:i+m-1]))
+            aMPi = minimum(mass(T[i:i+m-1], T[i-prefix+1:i]))
             if aMPi < BSF
                 break # Stop searching
             else # Double the length of prefix
@@ -307,7 +315,7 @@ function _dampf!(T, m, i, BSF, PV)
     last = min(start + lookahead - 1, length(T))
 
     if last < length(T)#  && i+m-1 <= length(T) #the search does not reach the end of the time series
-        Di = mass(T[start:last], T[i:i+m-1])
+        Di = mass(T[i:i+m-1], T[start:last])
         indices = findall(Di .< BSF)
         indices .+= (start - 1)
         PV[indices] .= false

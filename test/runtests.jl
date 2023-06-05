@@ -106,6 +106,16 @@ end
        @test MatrixProfile.seqlength(an) == length(y0)
    end
 
+
+   @testset "mass" begin
+       @info "Testing mass"
+       T = randn(100)
+       Q = randn(10)
+       d = distance_profile(ZEuclidean(), Q, T)
+       dmass = mass(Q, T)
+       @test d ≈ dmass rtol=1e-3
+   end
+
    @testset "damp" begin
         @info "Testing damp"
         t = 0:0.1:100
@@ -199,3 +209,12 @@ end
 # T = parse.(Int, split(join(Char.(read(path))), ','))
 # profile, snips, Cfracs = snippets(T, 3, 20, 10)
 # plot(plot(snips, layout = (1, 3), size = (800, 200)), plot(profile, snips, legend = false), layout=(2,1))
+
+
+
+# T = randn(100000)
+# Q = randn(10000)
+# d = @btime distance_profile(ZEuclidean(), $Q, $T);
+# dmass = @btime mass($Q, $T);
+# @test d ≈ dmass rtol=1e-3
+
