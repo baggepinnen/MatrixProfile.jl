@@ -217,19 +217,6 @@ mass(Q::AbstractVector, T::AbstractVector) = distance_profile(ZEuclidean(), Q, T
 # end
 
 
-
-
-# x = randn(100000000);
-# y = rand(400);
-# k = 2^23;
-# @time p = MatrixProfile.mass(x,y,k);
-
-# x = randn(1000000)
-# y = rand(16)
-# k = 2^5
-# @time p = MatrixProfile.mass(x,y,k);
-
-
 """
     damp(T, m, ind = length(T) ÷ 10)
 
