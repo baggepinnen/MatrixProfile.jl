@@ -264,7 +264,7 @@ Backward processing of damp algorithm
 function _dampb(T,m,i,BSF)
     aMPi = Inf
     prefix = nextpow(2, m) # Initial length of prefix
-    while aMPi ≥ BSF
+    @views while aMPi ≥ BSF
         if i-prefix+1 <= 1 #the search reaches the beginning of the time series
             aMPi = minimum(mass(T[i:i+m-1], T[1:i]))
             if aMPi > BSF # Update the current best discord score
@@ -302,7 +302,7 @@ function _dampf!(T, m, i, BSF, PV)
     last = min(start + lookahead - 1, length(T))
 
     if last < length(T)#  && i+m-1 <= length(T) #the search does not reach the end of the time series
-        Di = mass(T[i:i+m-1], T[start:last])
+        @views Di = mass(T[i:i+m-1], T[start:last])
         indices = findall(Di .< BSF)
         indices .+= (start - 1)
         PV[indices] .= false
