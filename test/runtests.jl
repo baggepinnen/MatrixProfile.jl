@@ -38,6 +38,17 @@ end
    @test m[1] < 1e-6
    @test m[2] == 51 || m[2] == 112
 
+   profileez = @inferred matrix_profile(T, length(y0), exclusion_zone=10)
+   Pez,Iez = profileez.P, profileez.I
+   @test_nowarn plot(profileez)
+   # plot(T, layout=2)
+   # plot!(P, sp=2)
+
+   m = findmin(Pez)
+   @test m[1] < 1e-6
+   @test m[2] == 51 || m[2] == 112
+   @test all(Pez .>= P .- 1e-12)
+
 
    # Test Euclidean between two series
    profile3 = @inferred matrix_profile(T, T, length(y0))

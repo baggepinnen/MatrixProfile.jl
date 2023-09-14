@@ -23,13 +23,15 @@ struct Profile{TT,TP,QT}
 end
 
 """
-    profile = matrix_profile(T, m, [dist = ZEuclidean()]; showprogress=true)
+    profile = matrix_profile(T, m, [dist = ZEuclidean()]; showprogress=true, exclusion_zone = 0)
 
 Return the matrix profile and the profile indices of time series `T` with window length `m`. See fields `profile.P, profile.I`. You can also plot the profile. If `dist = ZEuclidean()` the STOMP algorithm will be used.
 
+- `exclusion_zone` denotes an integer number of samples around the trivial match to avoid. The paper suggests using `exclusion_zone = m ÷ 4`. This is likely most beneficial for time-series dominated by low frequencies.
+
 Reference: [Matrix profile II](https://www.cs.ucr.edu/~eamonn/STOMP_GPU_final_submission_camera_ready.pdf).
 """
-function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true)
+function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true, kwargs...)
     n   = lastlength(T)
     l   = n-m+1
     n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $((n+1)÷2)"))
@@ -47,7 +49,7 @@ function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true)
             # The expression with fastmath appears to be both more accurate and faster than both muladd and fma
         end
         QT[1] = QT₀[i]
-        distance_profile!(D, ZEuclidean(), QT, μ, σ, m, i)
+        distance_profile!(D, ZEuclidean(), QT, μ, σ, m, i; kwargs...)
         update_min!(P, I, D, i)
         showprogress && i % 5 == 0 && next!(prog)
     end
