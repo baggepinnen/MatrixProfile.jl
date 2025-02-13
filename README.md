@@ -3,8 +3,7 @@
 [![Build Status](https://github.com/baggepinnen/MatrixProfile.jl/workflows/CI/badge.svg)](https://github.com/baggepinnen/MatrixProfile.jl/actions)
 [![Coverage](https://codecov.io/gh/baggepinnen/MatrixProfile.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/baggepinnen/MatrixProfile.jl)
 
-Time-series analysis using the matrix profile. The matrix profile `P` tells you which sub-sequences of a time series `T` are similar to each other, and which are most dissimilar from all other. This will allow you to find repeated patterns, or *motifs*, as well as finding outliers and anomalies. Here's a blog post that introduces the matrix profile with lots of nice figures and examples: https://towardsdatascience.com/introduction-to-matrix-profiles-5568f3375d90
-
+Time-series analysis using the matrix profile. The matrix profile `P` tells you which sub-sequences of a time series `T` are similar to each other, and which are most dissimilar from all other. This will allow you to find repeated patterns, or *motifs*, as well as finding outliers and anomalies. Here's a blog post that introduces the matrix profile with some nice figures and examples: https://medium.com/towards-data-science/introduction-to-matrix-profiles-5568f3375d90 (sorry for linking to a Medium article, the one I used to link to has vanished).
 
 ### Installation
 This package is registered and can be installed with
