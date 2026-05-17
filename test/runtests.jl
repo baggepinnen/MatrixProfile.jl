@@ -88,6 +88,12 @@ end
        # Test generic between two series
        profile4 = @inferred matrix_profile(T, T, length(y0), normdist)
        @test all(profile4.P .< 1e-6)
+
+       # Regression: generic AB-join must accept a short A (n <= 2m+1).
+       # A short query is a perfectly valid mutual matrix-profile use case.
+       m = length(y0)
+       short_A = T[51:51+m+1]                # length m+2, well below 2m+1
+       @test_nowarn matrix_profile(short_A, T, m, normdist)
    end
 
 
