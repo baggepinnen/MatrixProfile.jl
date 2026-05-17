@@ -34,20 +34,25 @@ All MP distance profiles between subsequences of length `S` in `T` using interna
 """
 function mpdist_profile(T::AbstractVector{TT},S::Int, m::Int, d::DT = ZEuclidean()) where {TT,DT}
     S >= m || throw(ArgumentError("S should be ≥ m"))
+    prev_fftw_threads = SlidingDistancesBase.DSP.FFTW.get_num_threads()
     SlidingDistancesBase.DSP.FFTW.set_num_threads(1)
-    n = length(T)
-    pad = S * ceil(Int, n / S) - n
-    T = append!(copy(T), zeros(TT, pad)) # copy() to avoid mutating caller; vcat was not type stable
-    N = S-m+1
-    D = Matrix{float(TT)}(undef, length(T)-m+1, N)
-    sliding_means = similar(D)
-    m_profile = similar(D, 2N)
+    try
+        n = length(T)
+        pad = S * ceil(Int, n / S) - n
+        T = append!(copy(T), zeros(TT, pad)) # copy() to avoid mutating caller; vcat was not type stable
+        N = S-m+1
+        D = Matrix{float(TT)}(undef, length(T)-m+1, N)
+        sliding_means = similar(D)
+        m_profile = similar(D, 2N)
 
-    prog = Progress((n-S)÷S, dt=1, desc="MP dist profile")
-    map(1:S:n-S) do i
-        dp = mpdist_profile(getwindow(T,S,i), T, m, d, D, sliding_means, m_profile)
-        next!(prog)
-        dp
+        prog = Progress((n-S)÷S, dt=1, desc="MP dist profile")
+        map(1:S:n-S) do i
+            dp = mpdist_profile(getwindow(T,S,i), T, m, d, D, sliding_means, m_profile)
+            next!(prog)
+            dp
+        end
+    finally
+        SlidingDistancesBase.DSP.FFTW.set_num_threads(prev_fftw_threads)
     end
 end
 
