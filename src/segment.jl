@@ -22,7 +22,16 @@ function segment_profile(p::Profile)
             end
         end
     end
-    mpi .= min.(mpi ./ expected_arc.(0:n-1, n), 1)
+    # expected_arc is 0 at i = 0 and i = n-1, so dividing at the endpoints
+    # would produce Inf (capped to 1 below) or NaN (when mpi is also 0 at
+    # the endpoint). Set the endpoints to one explicitly — the "fully
+    # expected, no segmentation here" value — and only do the ratio in the
+    # interior.
+    if n >= 2
+        @views mpi[2:n-1] .= min.(mpi[2:n-1] ./ expected_arc.(1:n-2, n), 1)
+        mpi[1]   = one(eltype(mpi))
+        mpi[end] = one(eltype(mpi))
+    end
     mpi
 end
 
