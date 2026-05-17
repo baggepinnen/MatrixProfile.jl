@@ -267,15 +267,15 @@ function _dampb(T,m,i,BSF)
     aMPi = Inf
     prefix = nextpow(2, m) # Initial length of prefix
     @views while aMPi ≥ BSF
-        if i-prefix+1 <= 1 #the search reaches the beginning of the time series
-            aMPi = minimum(mass(T[i:i+m-1], T[1:i]))
+        if i-prefix < 1 #the search reaches the beginning of the time series
+            aMPi = minimum(mass(T[i:i+m-1], T[1:i-1]))
             if aMPi > BSF # Update the current best discord score
                 BSF = aMPi
             end
             break
         else
             # @show length(T), prefix, i, m
-            aMPi = minimum(mass(T[i:i+m-1], T[i-prefix+1:i]))
+            aMPi = minimum(mass(T[i:i+m-1], T[i-prefix:i-1]))
             if aMPi < BSF
                 break # Stop searching
             else # Double the length of prefix
