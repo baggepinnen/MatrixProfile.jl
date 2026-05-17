@@ -37,7 +37,7 @@ function mpdist_profile(T::AbstractVector{TT},S::Int, m::Int, d::DT = ZEuclidean
     SlidingDistancesBase.DSP.FFTW.set_num_threads(1)
     n = length(T)
     pad = S * ceil(Int, n / S) - n
-    append!(T,zeros(TT, pad)) # vcat was not type stable
+    T = append!(copy(T), zeros(TT, pad)) # copy() to avoid mutating caller; vcat was not type stable
     N = S-m+1
     D = Matrix{float(TT)}(undef, length(T)-m+1, N)
     sliding_means = similar(D)

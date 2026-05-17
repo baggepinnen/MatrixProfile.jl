@@ -162,6 +162,13 @@ end
        snips = snippets(T, 2, 50, m=5)
        @test_nowarn plot(snips)
 
+       # Regression test: mpdist_profile / snippets must not mutate the caller's T.
+       T_in = [A; B]
+       T_ref = copy(T_in)
+       mpdist_profile(T_in, 50, 5)
+       @test T_in == T_ref
+       snippets(T_in, 2, 50, m=5)
+       @test T_in == T_ref
    end
 
 
