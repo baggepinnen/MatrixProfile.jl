@@ -5,7 +5,7 @@
 
 The MP distance between `A` and `B` using window length `M` and returning the `k`th smallest value.
 """
-function mpdist(A,B,m,d=ZEuclidean(),k=(length(A)+length(B)-2m)÷20)
+function mpdist(A,B,m,d=ZEuclidean(),k=max(1, (length(A)+length(B)-2m)÷20))
     p1 = matrix_profile(A,B,m,d)
     p2 = matrix_profile(B,A,m,d)
     partialsort([p1.P; p2.P], k)
