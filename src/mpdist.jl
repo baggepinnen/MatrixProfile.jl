@@ -91,7 +91,7 @@ end
 function mpdistmat!(D, A::AbstractVector, B::AbstractVector, m::Int, d)
     N = lastlength(B)-m +1
     Threads.@threads for i = 1:N # Not thread safe for more than one FFTW thread
-        distance_profile!(D[!,i], ZEuclidean(), getwindow(B, m, i), A)
+        distance_profile!(D[!,i], d, getwindow(B, m, i), A)
     end
     D
 end
