@@ -252,16 +252,19 @@ end
 
 
 """
-    aMP[i], BSF = dampb(T, m, i, BSF)
+    aMPi, BSF = _dampb(T, m, i, BSF)
 
 Backward processing of damp algorithm
 
 # Arguments:
 - `T`: Time series
-- `m`: Subsequence
+- `m`: Subsequence length
 - `i`: Index of current query
 - `BSF`: Highest discord score so far
+
+# Returns:
 - `aMPi`: Discord value at position i
+- `BSF`: Possibly updated best-so-far discord score
 """
 function _dampb(T,m,i,BSF)
     aMPi = Inf

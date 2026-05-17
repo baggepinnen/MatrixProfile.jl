@@ -1,9 +1,9 @@
 
 
 """
-    mpdist(A, B, m, d = ZEuclidean, k = ((length(A) + length(B)) - 2m) ÷ 20)
+    mpdist(A, B, m, d = ZEuclidean(), k = ((length(A) + length(B)) - 2m) ÷ 20)
 
-The MP distance between `A` and `B` using window length `M` and returning the `k`th smallest value.
+The MP distance between `A` and `B` using window length `m` and returning the `k`th smallest value.
 """
 function mpdist(A,B,m,d=ZEuclidean(),k=(length(A)+length(B)-2m)÷20)
     p1 = matrix_profile(A,B,m,d)
@@ -33,7 +33,7 @@ end
 All MP distance profiles between subsequences of length `S` in `T` using internal window length `m`.
 """
 function mpdist_profile(T::AbstractVector{TT},S::Int, m::Int, d::DT = ZEuclidean()) where {TT,DT}
-    S >= m || throw(ArgumentError("S should be > m"))
+    S >= m || throw(ArgumentError("S should be ≥ m"))
     SlidingDistancesBase.DSP.FFTW.set_num_threads(1)
     n = length(T)
     pad = S * ceil(Int, n / S) - n

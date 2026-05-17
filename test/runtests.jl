@@ -186,7 +186,7 @@ end
 
         x = [sin.(1:0.1:100); sign.(sin.(1:0.1:100))]
         x .+= 0.01 .* randn.()
-        p = p = matrix_profile(x, 20)
+        p = matrix_profile(x, 20)
         s = segment_profile(p)
         val, ind = findmin(s)
         @test abs(ind-length(s)÷2) < 10

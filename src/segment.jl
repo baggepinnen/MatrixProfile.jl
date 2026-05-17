@@ -29,7 +29,7 @@ end
 """
     i = segment(p::Profile)
 
-Returns an index `i` indicating the most likely segmentation point of profile `p`, i.e., the point which the fewst nearest-neighbor arcs passes over.
+Returns an index `i` indicating the most likely segmentation point of profile `p`, i.e., the point which the fewest nearest-neighbor arcs passes over.
 
 Ref: Matrix Profile VIII: Domain Agnostic Online Semantic
 Segmentation at Superhuman Performance Levels
