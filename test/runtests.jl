@@ -156,8 +156,12 @@ end
        @test mpdist(A,A, m) < 10sqrt(eps())
        @test mpdist(B,B, m) < 10sqrt(eps())
        T = [A; B]
-       p = mpdist_profile(T, 50, 5)
+       n_T = length(T)
+       S_in = 50
+       p = mpdist_profile(T, S_in, 5)
        @test_nowarn plot(p)
+       # mpdist_profile must cover every S-sized block of the (zero-padded) series.
+       @test length(p) == cld(n_T, S_in)
 
        snips = snippets(T, 2, 50, m=5)
        @test_nowarn plot(snips)

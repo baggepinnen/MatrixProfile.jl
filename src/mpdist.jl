@@ -43,8 +43,9 @@ function mpdist_profile(T::AbstractVector{TT},S::Int, m::Int, d::DT = ZEuclidean
     sliding_means = similar(D)
     m_profile = similar(D, 2N)
 
-    prog = Progress((n-S)÷S, dt=1, desc="MP dist profile")
-    map(1:S:n-S) do i
+    last_start = length(T) - S + 1
+    prog = Progress(length(1:S:last_start), dt=1, desc="MP dist profile")
+    map(1:S:last_start) do i
         dp = mpdist_profile(getwindow(T,S,i), T, m, d, D, sliding_means, m_profile)
         next!(prog)
         dp
