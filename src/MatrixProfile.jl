@@ -131,7 +131,9 @@ function matrix_profile(A::AbstractArray{S}, B::AbstractArray{S}, m::Int, dist; 
     n  = lastlength(A)
     l  = n-m+1
     lT = lastlength(B)-m+1
-    n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $((n+1)÷2)"))
+    # The 2m+1 lower bound applies only to the self-join; for an AB-join A
+    # is independent of B and can be as short as m. See the ZEuclidean
+    # AB-join above for the same reason.
     P    = distance_profile(dist, getwindow(A,m,1), B)
     # P[1] = typemax(eltype(P))
     D    = similar(P)
