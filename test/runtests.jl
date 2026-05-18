@@ -160,8 +160,11 @@ end
        short = randn(10)
        @test_nowarn mpdist(short, short, 4)
        T = [A; B]
-       p = mpdist_profile(T, 50, 5)
+       S_in = 50
+       p = mpdist_profile(T, S_in, 5)
        @test_nowarn plot(p)
+       # Imani et al., Matrix Profile XIII, Table II: floor(n/S) windows.
+       @test length(p) == length(T) ÷ S_in
 
        snips = snippets(T, 2, 50, m=5)
        @test_nowarn plot(snips)

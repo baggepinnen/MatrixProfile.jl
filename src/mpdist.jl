@@ -38,15 +38,17 @@ function mpdist_profile(T::AbstractVector{TT},S::Int, m::Int, d::DT = ZEuclidean
     SlidingDistancesBase.DSP.FFTW.set_num_threads(1)
     try
         n = length(T)
-        pad = S * ceil(Int, n / S) - n
-        T = append!(copy(T), zeros(TT, pad)) # copy() to avoid mutating caller; vcat was not type stable
+        # Imani et al., Matrix Profile XIII, Table II: floor(n/S) non-overlapping
+        # windows T[(i-1)S+1 : iS]; trailing n mod S samples are not used.
+        n_windows = n ÷ S
+        last_start = (n_windows - 1) * S + 1
         N = S-m+1
-        D = Matrix{float(TT)}(undef, length(T)-m+1, N)
+        D = Matrix{float(TT)}(undef, n-m+1, N)
         sliding_means = similar(D)
         m_profile = similar(D, 2N)
 
-        prog = Progress((n-S)÷S, dt=1, desc="MP dist profile")
-        map(1:S:n-S) do i
+        prog = Progress(n_windows, dt=1, desc="MP dist profile")
+        map(1:S:last_start) do i
             dp = mpdist_profile(getwindow(T,S,i), T, m, d, D, sliding_means, m_profile)
             next!(prog)
             dp
