@@ -155,6 +155,10 @@ end
        @test @inferred(mpdist(A,B, m)) > 0
        @test mpdist(A,A, m) < 10sqrt(eps())
        @test mpdist(B,B, m) < 10sqrt(eps())
+
+       # Regression: short inputs send default k to 0; mpdist must not error.
+       short = randn(10)
+       @test_nowarn mpdist(short, short, 4)
        T = [A; B]
        p = mpdist_profile(T, 50, 5)
        @test_nowarn plot(p)
