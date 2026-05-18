@@ -106,12 +106,22 @@ end
 
 
 """
-    snippets(T, k, S; m = max(S ÷ 10, 4))
+    snippets(T, k, S, d = ZEuclidean(); m = max(S ÷ 10, 4), th = Inf)
 
-Summarize time series `T` by extracting `k` snippets of length `S`
-The parameter `m` controls the window length used internally.
+Summarize time series `T` by extracting `k` snippets of length `S` using
+the Snippet-Finder algorithm of Imani et al., *Matrix Profile XIII*.
+
+# Keyword arguments
+- `m`: window length used internally by `mpdist_profile`.
+- `th`: **non-standard extension** to the paper. When `th < Inf`, each
+  newly selected snippet onset is required to be more than `th` samples
+  away from every previously selected onset. The default `Inf` disables
+  the constraint and reproduces the paper's algorithm verbatim (Table I,
+  line 7). Use a finite `th` only if you specifically want to force a
+  minimum temporal spacing between snippets — it is not part of
+  Snippet-Finder as published.
 """
-function snippets(T, k, S, d=ZEuclidean(); m = max(S÷10, 4), th=S)
+function snippets(T, k, S, d=ZEuclidean(); m = max(S÷10, 4), th=Inf)
     D      = mpdist_profile(T,S,m,d)
     INF    = typemax(floattype(T))
     Q      = fill(INF, length(D[1]))
@@ -119,11 +129,12 @@ function snippets(T, k, S, d=ZEuclidean(); m = max(S÷10, 4), th=S)
     minI   = 0
     onsets = zeros(Int, k)
     snippet_profiles = similar(D, k)
+    constrain_spacing = th < Inf
     for j = 1:k
         minA = INF
         for i = 1:length(D)
             A = sum(min.(D[i], Q))
-            if A < minA #&& all(abs.(((i-1)*S+1) .- onsets[1:j-1]) .> th)
+            if A < minA && (!constrain_spacing || all(abs.(((i-1)*S+1) .- onsets[1:j-1]) .> th))
                 minA = A
                 minI = i
             end
