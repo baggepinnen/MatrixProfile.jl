@@ -197,6 +197,18 @@ end
         @test val < 0.02
 
         @test segment(p) == ind
+
+        # Regression: when no arcs cover the first/last index (mpi[1] or
+        # mpi[end] == 0) the previous implementation produced NaN via
+        # 0/0 division at the endpoints. Construct a Profile where each
+        # window is its own NN to force this exact case.
+        let n_idx = 8
+            I_self = collect(1:n_idx)
+            P_zero = zeros(Float64, n_idx)
+            p_self = Profile(randn(n_idx + 4), P_zero, I_self, 5, nothing)
+            s_self = segment_profile(p_self)
+            @test !any(isnan, s_self)
+        end
    end
 
 
