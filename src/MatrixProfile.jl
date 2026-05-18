@@ -308,7 +308,7 @@ function _dampf!(T, m, i, BSF, PV)
     start = i + m
     last = min(start + lookahead - 1, length(T))
 
-    if last < length(T)#  && i+m-1 <= length(T) #the search does not reach the end of the time series
+    if last - start + 1 >= m # at least one full subsequence in the lookahead
         @views Di = mass(T[i:i+m-1], T[start:last])
         indices = findall(Di .< BSF)
         indices .+= (start - 1)
