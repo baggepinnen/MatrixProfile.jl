@@ -57,10 +57,10 @@ end
 
 
    profile5 = matrix_profile(T[1:end÷2], T, length(y0))
-   @test sum(profile5.P[1:length(T)÷2-length(y0)]) < 1e-5
+   @test all(profile5.P[1:length(T)÷2-length(y0)] .< 1e-6)
 
    profile6 = matrix_profile(T, T[1:end÷2], length(y0))
-   @test sum(profile6.P) < 1e-5
+   @test all(profile6.P .< 1e-6)
 
 
    profile7n = naive_matrix_profile(T, A, length(y0))
