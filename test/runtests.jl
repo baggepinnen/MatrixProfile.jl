@@ -47,7 +47,8 @@ end
    m = findmin(Pez)
    @test m[1] < 1e-6
    @test m[2] == 51 || m[2] == 112
-   @test all(Pez .>= P .- 1e-12)
+   # Distances near zero carry rounding errors of order sqrt(eps) due to cancellation in sqrt(2m(1-ρ))
+   @test all(Pez .>= P .- 1e-6)
 
 
    # Test Euclidean between two series
@@ -159,8 +160,9 @@ end
        # plot(p1)
        # plot!(p2)
        @test @inferred(mpdist(A,B, m)) > 0
-       @test mpdist(A,A, m) < 10sqrt(eps())
-       @test mpdist(B,B, m) < 10sqrt(eps())
+       # The self-distance is zero up to rounding errors of order sqrt(eps)
+       @test mpdist(A,A, m) < 1e-6
+       @test mpdist(B,B, m) < 1e-6
 
        # Regression: short inputs send default k to 0; mpdist must not error.
        short = randn(10)
