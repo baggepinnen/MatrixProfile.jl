@@ -134,6 +134,34 @@ end
        @test d ≈ dmass rtol=1e-3
    end
 
+   @testset "Input validation and edge cases" begin
+       @info "Testing input validation and edge cases"
+       # A unique, smooth segment at the start of the series: without the exclusion
+       # zone, its neighboring windows are trivial matches of the first window.
+       T = randn(400); T[1:60] .= range(0, 1, length=60).^2
+       ez = 10
+       p = matrix_profile(T, 30; exclusion_zone=ez, showprogress=false)
+       @test all(abs.(p.I .- (1:length(p.I))) .> ez)
+
+       @test_throws ArgumentError matrix_profile(randn(20), 10, showprogress=false)
+       @test !isdefined(MatrixProfile, :resample)
+
+       Ti = rand(1:10, 100)
+       @test matrix_profile(Ti, 10, showprogress=false).P ≈ matrix_profile(float.(Ti), 10, showprogress=false).P
+       Ai = rand(1:10, 50)
+       @test matrix_profile(Ai, Ti, 10, showprogress=false).P ≈ matrix_profile(float.(Ai), float.(Ti), 10, showprogress=false).P
+       A32 = randn(Float32, 50)
+       @test matrix_profile(A32, float.(Ti), 10, showprogress=false).P ≈ matrix_profile(Float64.(A32), float.(Ti), 10, showprogress=false).P
+       @test_throws ArgumentError matrix_profile(randn(5), randn(100), 10, showprogress=false)
+
+       @test mpdist([Inf, Inf], 0.9, 10) == Inf
+       @test_throws ArgumentError snippets(randn(100), 3, 40)
+
+       Td = sin.(0:0.1:30)
+       @test length(damp(Td, 50).P) == length(Td) - 50 + 1 # default split point is smaller than m
+       @test_throws ArgumentError damp(Td, 50, 10)
+   end
+
    @testset "damp" begin
         @info "Testing damp"
         t = 0:0.1:100

@@ -12,7 +12,17 @@ end
 
 const SubSeqType = Union{AbstractSubSequence, AbstractVector{<:AbstractSubSequence}}
 
+"""
+    onsets(m)
+
+Return the onsets (start indices in the time series) of the occurrences of motif `m`, or of the subsequence(s) `m` returned by [`anomalies`](@ref) or [`snippets`](@ref).
+"""
 onsets(m::Motif) = getfield.(m.seqs, :onset)
+"""
+    seqs(m)
+
+Return the subsequences belonging to motif `m`, or to the subsequence(s) `m` returned by [`anomalies`](@ref) or [`snippets`](@ref), as a vector of vectors.
+"""
 seqs(m::Motif) = getfield.(m.seqs, :seq)
 seqlength(m::Motif) = length(m.seqs[1].seq)
 subseqtype(::Union{Motif, Vector{<:Motif}}) = "Motif"
@@ -33,6 +43,9 @@ subseqtype(m::Array{<:Subsequence}) = subseqtype(m[1])
 - `k` is the number of motifs to extract
 - `r` controls how similar two windows must be to belong to the same motif. A higher value leads to more windows being grouped together.
 - `th` is a threshold on how nearby in time two motifs are allowed to be.
+- `dist` is the distance used to find the occurrences of a motif.
+
+Returns a vector of `Motif`s. Use [`onsets`](@ref) and [`seqs`](@ref) to obtain the onsets and subsequences of each motif, and `plot(p, motifs)` to visualize them.
 
 Also see the function `anomalies(profile)` to find anomalies in the data, sometimes called *discords*.
 """
@@ -76,6 +89,13 @@ function remove_found_motifs!(P, found_motifs, th)
 end
 
 
+"""
+    anomalies(p::Profile, k)
+
+Return the `k` subsequences with the largest matrix-profile values, i.e., the subsequences that are most dissimilar to their nearest neighbors, sometimes called *discords*. The result is a vector of `Subsequence`s, use [`onsets`](@ref) and [`seqs`](@ref) to access their onsets and values and `plot(p, anomalies(p, k))` to visualize them.
+
+Overlapping windows are not excluded; consecutive windows around a single anomaly may all be returned.
+"""
 function anomalies(p::Profile, k)
     onsets = partialsortperm(p.P, 1:k, rev=true)
     Subsequence(p, copy(onsets), "Anomaly")

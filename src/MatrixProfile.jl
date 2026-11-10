@@ -10,10 +10,24 @@ using SlidingDistancesBase
 import SlidingDistancesBase: floattype, lastlength, distance_profile, distance_profile!, window_dot
 export Euclidean, ZEuclidean
 
-export matrix_profile, distance_profile, motifs, anomalies, mpdist, mpdist_profile, onsets, snippets, seqs, resample, segment, segment_profile
+export matrix_profile, distance_profile, motifs, anomalies, mpdist, mpdist_profile, onsets, snippets, seqs, segment, segment_profile
 export damp, mass
 
 
+"""
+    Profile
+
+Result of [`matrix_profile`](@ref) and [`damp`](@ref).
+
+# Fields
+- `T`: the time series the profile is indexed by. For an AB-join `matrix_profile(A, B, m)`, this is `B`.
+- `P`: the matrix profile. `P[j]` is the distance between the window starting at `j` and its nearest neighbor.
+- `I`: the profile index. `I[j]` is the onset of the nearest neighbor of the window starting at `j`. For an AB-join, this is an index into `A`. For [`damp`](@ref), this field holds the pruning vector.
+- `m`: the window length.
+- `Q`: the query series `A` of an AB-join, `nothing` otherwise.
+
+A profile can be plotted with `plot(profile)` and passed to [`motifs`](@ref), [`anomalies`](@ref), [`segment`](@ref) and [`segment_profile`](@ref).
+"""
 struct Profile{TT,TP,QT}
     T::TT
     P::TP
@@ -27,18 +41,21 @@ end
 
 Return the matrix profile and the profile indices of time series `T` with window length `m`. See fields `profile.P, profile.I`. You can also plot the profile. If `dist = ZEuclidean()` the STOMP algorithm will be used.
 
-- `exclusion_zone` denotes an integer number of samples around the trivial match to avoid. The paper suggests using `exclusion_zone = m ÷ 4`. This is likely most beneficial for time-series dominated by low frequencies.
+- `exclusion_zone` denotes an integer number of samples around the trivial match to avoid. The paper suggests using `exclusion_zone = m ÷ 4`. This is likely most beneficial for time-series dominated by low frequencies. Only supported for `dist = ZEuclidean()`.
+- `showprogress` determines whether a progress bar is displayed.
+
+The window length must satisfy `length(T) > 2m + 1`. Integer-valued series are converted to floating point.
 
 Reference: [Matrix profile II](https://www.cs.ucr.edu/~eamonn/STOMP_GPU_final_submission_camera_ready.pdf).
 """
 function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true, kwargs...)
     n   = lastlength(T)
     l   = n-m+1
-    n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $((n+1)÷2)"))
+    n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $((n-2)÷2)"))
     μ,σ  = sliding_mean_std(T, m)
     QT   = window_dot(getwindow(T, m, 1), T)
     QT₀   = copy(QT)
-    D    = distance_profile(ZEuclidean(), QT, μ, σ, m)
+    D    = distance_profile!(similar(μ), ZEuclidean(), QT, μ, σ, m, 1; kwargs...)
     P    = copy(D)
     I    = ones(Int, l)
     prog = Progress((l - 1) ÷ 5, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
@@ -57,15 +74,18 @@ function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true, 
 end
 
 """
-    profile = matrix_profile(A, T, m, dist=ZEuclidean(); showprogress=true)
+    profile = matrix_profile(A, T, m, [dist = ZEuclidean()]; showprogress=true)
 
-Mutual matrix profile between `A` and `T`.
+Matrix profile of an AB-join between `A` and `T`. Every window of `T` is compared to all windows of `A`; `profile.P[j]` is the distance between the window of `T` starting at `j` and its nearest neighbor in `A`, and `profile.I[j]` is the onset of that neighbor in `A`. The result is in general not symmetric, `matrix_profile(A, T, m) != matrix_profile(T, A, m)`.
+
+Both series must have a length of at least `m`. Integer-valued series are converted to floating point.
 """
-function matrix_profile(A::AbstractVector{<:Number}, T::AbstractVector{<:Number}, m::Int; showprogress=true)
+function matrix_profile(A::AbstractVector{S}, T::AbstractVector{S}, m::Int; showprogress=true) where S <: Number
     n   = length(A)
     l   = n-m+1
+    n >= m || throw(ArgumentError("A is shorter than the window length m = $m"))
+    lastlength(T) >= m || throw(ArgumentError("T is shorter than the window length m = $m"))
     lT   = lastlength(T)-m+1
-    # n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $((n+1)÷2)"))
     μT,σT  = sliding_mean_std(T, m)
     μA,σA  = sliding_mean_std(A, m)
     QT     = window_dot(getwindow(A, m, 1), T)
@@ -86,6 +106,15 @@ function matrix_profile(A::AbstractVector{<:Number}, T::AbstractVector{<:Number}
     end
     Profile(T, P, I, m, A)
 end
+
+matrix_profile(T::AbstractVector{<:Integer}, m::Int; kwargs...) =
+    matrix_profile(float.(T), m; kwargs...)
+function matrix_profile(A::AbstractVector{<:Number}, T::AbstractVector{<:Number}, m::Int; kwargs...)
+    S = promote_type(float(eltype(A)), float(eltype(T)))
+    matrix_profile(S.(A), S.(T), m; kwargs...)
+end
+matrix_profile(A::AbstractVector{S}, T::AbstractVector{S}, m::Int; kwargs...) where S <: Integer =
+    matrix_profile(float.(A), float.(T), m; kwargs...)
 
 matrix_profile(T::AbstractVector{<:Number}, m::Int, ::ZEuclidean; kwargs...) =
     matrix_profile(T, m; kwargs...)
@@ -222,21 +251,21 @@ mass(Q::AbstractVector, T::AbstractVector) = distance_profile(ZEuclidean(), Q, T
 
 
 """
-    damp(T, m, ind = length(T) ÷ 10)
+    profile = damp(T, m, ind = max(length(T) ÷ 10, m))
 
 DAMP algorithm from https://www.cs.ucr.edu/~eamonn/DAMP_long_version.pdf
 
 # Arguments:
 - `T`: Time series
 - `m`: Subsequence length (choose as approximate period of repeating patterns)
-- `ind`: Location of split point between training and test data, defaults to 10% of the data.
+- `ind`: Location of split point between training and test data, defaults to 10% of the data. Must satisfy `m ≤ ind ≤ length(T) - m + 1`.
 
 # Returns:
--  `aMP`: Left approximate Matrix Profile. Large values indicate anomalies.
+A [`Profile`](@ref) where `profile.P` is the left approximate matrix profile. Large values indicate anomalies. Entries before `ind` belong to the training data and are zero. `profile.I` holds the pruning vector, an entry of zero indicates that the corresponding subsequence was pruned.
 """
-function damp(T, m, ind = length(T) ÷ 10)
-    ind < length(T) || throw(ArgumentError("ind must be less than length(T)"))
+function damp(T, m, ind = max(length(T) ÷ 10, m))
     m < length(T) || throw(ArgumentError("m must be (quite a bit) less than length(T)"))
+    m <= ind <= length(T) - m + 1 || throw(ArgumentError("ind must satisfy m ≤ ind ≤ length(T) - m + 1"))
     PV = ones(Int, length(T)-m+1)
     aMP = zeros(length(T)-m+1)
     BSF = zero(eltype(T)) # The current best discord score
