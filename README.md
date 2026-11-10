@@ -25,7 +25,9 @@ plot(profile) # Should have minima at 21 and 52
 ```
 ![matrix_profile](figures/mp.svg)
 
-The matrix profile have two sharp minima at the onsets of the repeated pattern. The parameter `window_length` determines how long pattern to search for.
+The matrix profile has two sharp minima at the onsets of the repeated pattern. The parameter `window_length` determines the length of the pattern to search for. The fields `profile.P` and `profile.I` hold the matrix profile and the profile indices, i.e., the onset of the nearest neighbor of each window.
+
+For time series dominated by low frequencies, neighboring windows are very similar to each other. The keyword argument `exclusion_zone` excludes matches within this many samples of a window, e.g., `matrix_profile(T, m; exclusion_zone = m ÷ 4)`.
 
 ### Analysis across different time-series
 If called like
@@ -39,7 +41,7 @@ consecutive windows of `A` will be compared to the entire `B`. The resulting mat
 
 If `dist` is provided, a generic (slow) method is used. If `dist` is not provided and the inputs `A,B` are one dimensional vectors of numbers, a fast method is used. The fast method handles long time series, `length(A) = length(B) = 100k` takes less than 30s.
 
-If the time-series is sampled very fast in relation to the time scale on which interesting things happen, you may try the function [`resample(T, fraction::Real)`](https://juliadsp.github.io/DSP.jl/stable/filters/#DSP.Filters.resample) to reduce the amount of data to process. Example, `resample(T, desired_samplerate/original_samplerate)`.
+If the time-series is sampled very fast in relation to the time scale on which interesting things happen, you may try the function [`resample(T, fraction::Real)`](https://juliadsp.github.io/DSP.jl/stable/filters/#DSP.Filters.resample) from DSP.jl to reduce the amount of data to process. Example, `using DSP; resample(T, desired_samplerate/original_samplerate)`.
 
 ## Motif grouping
 Using the fake data from the example above, we can do
@@ -54,7 +56,9 @@ plot(profile, mot)
 - `th` is a threshold on how nearby in time two motifs are allowed to be.
 ![motif_plot](figures/motifs.svg)
 
-Also see the function `anomalies(profile)` to find anomalies (or outliers) in the data, sometimes called *discords*.
+The functions `onsets(mot[i])` and `seqs(mot[i])` return the onsets and the subsequences of motif `i`.
+
+Also see the function `anomalies(profile, k)` to find the `k` largest anomalies (or outliers) in the data, sometimes called *discords*.
 
 
 ## Arbitrary metrics and input types
@@ -65,7 +69,7 @@ profile = matrix_profile(T, m, dist)
 If `T` is a high-dimensional array, time is considered to be the last axis. `T` can also be a vector of any arbitrary julia objects for which the function `dist(x,y)` is defined. Note that if `T` has a long time dimensions, the matrix profile will be expensive to compute, 𝒪(n²log(n)). This method does not make use of the STOMP algorithm, since this is limited to one-dimensional data under the Euclidean metric.
 
 ## MP distance
-See `mpdist(A,B,m)`.
+`mpdist(A, B, m)` computes the MP distance between two time series using window length `m`. `mpdist_profile(Q, T, m)` computes the MP distance between the query `Q` and every subsequence of `T` of length `length(Q)`.
 
 ## Segmentation / change-point detection
 The most likely segmentation of a time series into two is calculated using `segment(p::Profile)`. A more detailed analysis can be performed using `sp = segment_profile(p::Profile)` which returns a vector of the same length as `p`, where a low value at index `i` indicates that few nearest-neighbor arcs pass over index `i`, `sp` thus form sort-of a "segmentation profile".
@@ -85,24 +89,25 @@ The arguments to `snippets` are
 - The length of each snippet
 - Optional `m`: the length of a small subsequence to be used internally, defaults to 10% of the snippet length.
 
+The fraction of the time series represented by each snippet is available in `snips.Cfracs`, and `segment(snips)` indicates which snippet represents the time series at each index.
+
 This function can take a while to run for long time-series, for `length(T) = 15k`, it takes less than a minute on a laptop. The time depends strongly on the internal window length parameter.
 
 ## MASS
 
-`mass(x::AbstractVector{T}, y::AbstractVector{T}, k)`
-- `x`: Data
-- `y`: query
-- `k`: window size, must be at least `length(y)`
+`mass(Q, T)` computes the z-normalized Euclidean distance between the query `Q` and every subsequence of `T` of length `length(Q)`, equivalent to `distance_profile(ZEuclidean(), Q, T)`.
+- `Q`: query
+- `T`: data
 
 ## DAMP
-`damp(T, m, ind = length(T) ÷ 10)`
+`damp(T, m, ind = max(length(T) ÷ 10, m))`
 
 DAMP algorithm for anomaly detection in time series with repeated patterns.
 - `T`: Time series
 - `m`: Subsequence length (choose as approximate period of repeating patterns)
 - `ind`: Location of split point between training and test data, defaults to 10% of the data.
 
-Returns the left-approximate Matrix Profile. Large values indicate anomalies.
+Returns a profile `p` where `p.P` is the left-approximate Matrix Profile. Large values indicate anomalies.
 
 ## References
 - The STOMP algorithm used in `matrix_profile` is detailed in the paper [Matrix profile II](https://www.cs.ucr.edu/~eamonn/STOMP_GPU_final_submission_camera_ready.pdf).
