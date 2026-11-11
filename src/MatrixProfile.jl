@@ -54,14 +54,13 @@ function matrix_profile(T0::AbstractVector{<:Number}, m::Int; showprogress=true,
     n   = lastlength(T0)
     l   = n-m+1
     n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $((n-2)÷2)"))
-    T, finite, constant = degenerate_windows(T0, m)
-    special = findall(.!finite .| constant)
-    degenerate = !isempty(special)
+    special, kinds = degenerate_windows(T0, m)
+    T    = replace_nonfinite(T0, kinds)
     μ,σ  = sliding_mean_std(T, m)
     QT   = window_dot(getwindow(T, m, 1), T)
     QT₀   = copy(QT)
     D    = distance_profile!(similar(μ), ZEuclidean(), QT, μ, σ, m, 1; exclusion_zone)
-    degenerate && correct_degenerate!(D, finite[1], constant[1], finite, constant, special, m, 1-exclusion_zone:1+exclusion_zone)
+    isempty(special) || correct_degenerate!(D, window_kind(special, kinds, 1), special, kinds, m, 1-exclusion_zone:1+exclusion_zone)
     P    = copy(D)
     I    = ones(Int, l)
     prog = Progress((l - 1) ÷ 5, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
@@ -73,48 +72,79 @@ function matrix_profile(T0::AbstractVector{<:Number}, m::Int; showprogress=true,
         end
         QT[1] = QT₀[i]
         distance_profile!(D, ZEuclidean(), QT, μ, σ, m, i; exclusion_zone)
-        degenerate && correct_degenerate!(D, finite[i], constant[i], finite, constant, special, m, i-exclusion_zone:i+exclusion_zone)
+        isempty(special) || correct_degenerate!(D, window_kind(special, kinds, i), special, kinds, m, i-exclusion_zone:i+exclusion_zone)
         update_min!(P, I, D, i)
         showprogress && i % 5 == 0 && next!(prog)
     end
     Profile(T0, P, I, m, nothing)
 end
 
-"""
-    T, finite, constant = degenerate_windows(T0, m)
+const NONFINITE = 0x01
+const CONSTANT  = 0x02
 
-Return `T0` with non-finite values replaced by zero, so that they do not propagate through the recursive update of the sliding dot products, together with indicators of the windows of length `m` that contain only finite values and of the windows that are constant.
 """
-function degenerate_windows(T0::AbstractVector, m::Int)
-    n = length(T0)
-    l = n-m+1
-    nonfinite = cumsum(.!isfinite.(T0))
-    finite    = [nonfinite[j+m-1] - (j > 1 ? nonfinite[j-1] : 0) == 0 for j in 1:l]
-    runlength = ones(Int, n) # Number of consecutive equal values ending at each index
-    for k in 2:n
-        T0[k] == T0[k-1] && (runlength[k] = runlength[k-1] + 1)
+    special, kinds = degenerate_windows(T, m)
+
+Return the onsets `special` of the windows of length `m` that contain a non-finite value or are constant, and for each of them a bit flag in `kinds` (`NONFINITE`, `CONSTANT`). Single pass without allocations proportional to `length(T)`.
+"""
+function degenerate_windows(T::AbstractVector, m::Int)
+    special   = Int[]
+    kinds     = UInt8[]
+    nonfinite = 0 # Number of non-finite values in the current window
+    run       = 0 # Number of consecutive equal values ending at the current index
+    @inbounds for k in eachindex(T)
+        x = T[k]
+        nonfinite += !isfinite(x)
+        k > m && (nonfinite -= !isfinite(T[k-m]))
+        run = (k > 1 && x == T[k-1]) ? run + 1 : 1
+        if k >= m
+            kind = ifelse(nonfinite > 0, NONFINITE, 0x00) | ifelse(run >= m, CONSTANT, 0x00)
+            if kind != 0
+                push!(special, k-m+1)
+                push!(kinds, kind)
+            end
+        end
     end
-    constant = [runlength[j+m-1] >= m for j in 1:l]
-    T = all(finite) ? T0 : map(x -> isfinite(x) ? x : zero(x), T0)
-    T, finite, constant
+    special, kinds
 end
 
 """
-    correct_degenerate!(D, qfinite, qconstant, finite, constant, special, m, excluded)
+    replace_nonfinite(T, kinds)
 
-Correct the distance profile `D` of a query window with properties `qfinite, qconstant` against windows with properties `finite, constant`, see [`degenerate_windows`](@ref). `special` holds the indices of the windows that are non-finite or constant; if the query window is neither, only these entries are corrected. Entries with indices in `excluded` (the exclusion zone of a self-join) are not modified.
+Return `T` with non-finite values replaced by zero, so that they do not propagate through the recursive update of the sliding dot products. `T` is returned unchanged if it contains no non-finite value.
 """
-function correct_degenerate!(D, qfinite, qconstant, finite, constant, special, m, excluded)
+replace_nonfinite(T, kinds) =
+    any(k -> k & NONFINITE != 0, kinds) ? map(x -> isfinite(x) ? x : zero(x), T) : T
+
+"Return the flag of window `i` given the output of [`degenerate_windows`](@ref)."
+function window_kind(special, kinds, i)
+    q = searchsortedfirst(special, i)
+    q <= length(special) && special[q] == i ? kinds[q] : 0x00
+end
+
+"""
+    correct_degenerate!(D, qkind, special, kinds, m, excluded)
+
+Correct the distance profile `D` of a query window with flag `qkind` against the windows described by `special, kinds`, see [`degenerate_windows`](@ref). If the query window is neither non-finite nor constant, only the entries in `special` are modified. Entries with indices in `excluded` (the exclusion zone of a self-join) are not modified.
+"""
+function correct_degenerate!(D, qkind, special, kinds, m, excluded)
     S = eltype(D)
-    @inbounds for j in (qfinite && !qconstant ? special : eachindex(D))
-        j ∈ excluded && continue
-        if !(qfinite && finite[j])
-            D[j] = typemax(S)
-        elseif qconstant && constant[j]
-            D[j] = zero(S)
-        elseif qconstant || constant[j]
-            D[j] = sqrt(S(m))
+    if qkind & NONFINITE != 0
+        @inbounds for j in eachindex(D)
+            j ∈ excluded || (D[j] = typemax(S))
         end
+        return D
+    end
+    qconstant = qkind & CONSTANT != 0
+    if qconstant
+        @inbounds for j in eachindex(D)
+            j ∈ excluded || (D[j] = sqrt(S(m)))
+        end
+    end
+    @inbounds for (j, kind) in zip(special, kinds)
+        j ∈ excluded && continue
+        D[j] = kind & NONFINITE != 0 ? typemax(S) :
+               qconstant ? zero(S) : sqrt(S(m))
     end
     D
 end
@@ -131,10 +161,11 @@ function matrix_profile(A0::AbstractVector{S}, T0::AbstractVector{S}, m::Int; sh
     l   = n-m+1
     n >= m || throw(ArgumentError("A is shorter than the window length m = $m"))
     lastlength(T0) >= m || throw(ArgumentError("T is shorter than the window length m = $m"))
-    A, finiteA, constantA = degenerate_windows(A0, m)
-    T, finiteT, constantT = degenerate_windows(T0, m)
-    specialT = findall(.!finiteT .| constantT)
-    degenerate = !isempty(specialT) || !all(finiteA) || any(constantA)
+    specialA, kindsA = degenerate_windows(A0, m)
+    specialT, kindsT = degenerate_windows(T0, m)
+    A    = replace_nonfinite(A0, kindsA)
+    T    = replace_nonfinite(T0, kindsT)
+    degenerate = !(isempty(specialA) && isempty(specialT))
     lT   = lastlength(T)-m+1
     μT,σT  = sliding_mean_std(T, m)
     μA,σA  = sliding_mean_std(A, m)
@@ -142,7 +173,7 @@ function matrix_profile(A0::AbstractVector{S}, T0::AbstractVector{S}, m::Int; sh
     @assert length(QT) == lT
     QT₀  = copy(QT)
     D    = distance_profile(ZEuclidean(), QT, μA, σA, μT, σT, m)
-    degenerate && correct_degenerate!(D, finiteA[1], constantA[1], finiteT, constantT, specialT, m, 1:0)
+    degenerate && correct_degenerate!(D, window_kind(specialA, kindsA, 1), specialT, kindsT, m, 1:0)
     P    = copy(D)
     I    = ones(Int, lT)
     prog = Progress((l - 1) ÷ 5, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
@@ -152,7 +183,7 @@ function matrix_profile(A0::AbstractVector{S}, T0::AbstractVector{S}, m::Int; sh
         end
         QT[1] = dot(getwindow(A, m, i), getwindow(T,m,1)) #QT₀[i]
         distance_profile!(D, ZEuclidean(), QT, μA, σA, μT, σT, m, i)
-        degenerate && correct_degenerate!(D, finiteA[i], constantA[i], finiteT, constantT, specialT, m, 1:0)
+        degenerate && correct_degenerate!(D, window_kind(specialA, kindsA, i), specialT, kindsT, m, 1:0)
         update_min!(P, I, D, i, false)
         showprogress && i % 5 == 0 && next!(prog)
     end
