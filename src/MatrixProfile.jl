@@ -46,16 +46,22 @@ Return the matrix profile and the profile indices of time series `T` with window
 
 The window length must satisfy `length(T) > 2m + 1`. Integer-valued series are converted to floating point.
 
+Windows that contain non-finite values (`NaN`, `Inf`) are at infinite distance from all other windows. Two constant windows are at distance zero, and a constant and a non-constant window are at distance `√m`, the distance between a z-normalized window and the zero vector. These conventions agree with those of the Python package stumpy.
+
 Reference: [Matrix profile II](https://www.cs.ucr.edu/~eamonn/STOMP_GPU_final_submission_camera_ready.pdf).
 """
-function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true, kwargs...)
-    n   = lastlength(T)
+function matrix_profile(T0::AbstractVector{<:Number}, m::Int; showprogress=true, exclusion_zone=0)
+    n   = lastlength(T0)
     l   = n-m+1
     n > 2m+1 || throw(ArgumentError("Window length too long, maximum length is $((n-2)÷2)"))
+    T, finite, constant = degenerate_windows(T0, m)
+    special = findall(.!finite .| constant)
+    degenerate = !isempty(special)
     μ,σ  = sliding_mean_std(T, m)
     QT   = window_dot(getwindow(T, m, 1), T)
     QT₀   = copy(QT)
-    D    = distance_profile!(similar(μ), ZEuclidean(), QT, μ, σ, m, 1; kwargs...)
+    D    = distance_profile!(similar(μ), ZEuclidean(), QT, μ, σ, m, 1; exclusion_zone)
+    degenerate && correct_degenerate!(D, finite[1], constant[1], finite, constant, special, m, 1-exclusion_zone:1+exclusion_zone)
     P    = copy(D)
     I    = ones(Int, l)
     prog = Progress((l - 1) ÷ 5, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
@@ -66,11 +72,51 @@ function matrix_profile(T::AbstractVector{<:Number}, m::Int; showprogress=true, 
             # The expression with fastmath appears to be both more accurate and faster than both muladd and fma
         end
         QT[1] = QT₀[i]
-        distance_profile!(D, ZEuclidean(), QT, μ, σ, m, i; kwargs...)
+        distance_profile!(D, ZEuclidean(), QT, μ, σ, m, i; exclusion_zone)
+        degenerate && correct_degenerate!(D, finite[i], constant[i], finite, constant, special, m, i-exclusion_zone:i+exclusion_zone)
         update_min!(P, I, D, i)
         showprogress && i % 5 == 0 && next!(prog)
     end
-    Profile(T, P, I, m, nothing)
+    Profile(T0, P, I, m, nothing)
+end
+
+"""
+    T, finite, constant = degenerate_windows(T0, m)
+
+Return `T0` with non-finite values replaced by zero, so that they do not propagate through the recursive update of the sliding dot products, together with indicators of the windows of length `m` that contain only finite values and of the windows that are constant.
+"""
+function degenerate_windows(T0::AbstractVector, m::Int)
+    n = length(T0)
+    l = n-m+1
+    nonfinite = cumsum(.!isfinite.(T0))
+    finite    = [nonfinite[j+m-1] - (j > 1 ? nonfinite[j-1] : 0) == 0 for j in 1:l]
+    runlength = ones(Int, n) # Number of consecutive equal values ending at each index
+    for k in 2:n
+        T0[k] == T0[k-1] && (runlength[k] = runlength[k-1] + 1)
+    end
+    constant = [runlength[j+m-1] >= m for j in 1:l]
+    T = all(finite) ? T0 : map(x -> isfinite(x) ? x : zero(x), T0)
+    T, finite, constant
+end
+
+"""
+    correct_degenerate!(D, qfinite, qconstant, finite, constant, special, m, excluded)
+
+Correct the distance profile `D` of a query window with properties `qfinite, qconstant` against windows with properties `finite, constant`, see [`degenerate_windows`](@ref). `special` holds the indices of the windows that are non-finite or constant; if the query window is neither, only these entries are corrected. Entries with indices in `excluded` (the exclusion zone of a self-join) are not modified.
+"""
+function correct_degenerate!(D, qfinite, qconstant, finite, constant, special, m, excluded)
+    S = eltype(D)
+    @inbounds for j in (qfinite && !qconstant ? special : eachindex(D))
+        j ∈ excluded && continue
+        if !(qfinite && finite[j])
+            D[j] = typemax(S)
+        elseif qconstant && constant[j]
+            D[j] = zero(S)
+        elseif qconstant || constant[j]
+            D[j] = sqrt(S(m))
+        end
+    end
+    D
 end
 
 """
@@ -78,13 +124,17 @@ end
 
 Matrix profile of an AB-join between `A` and `T`. Every window of `T` is compared to all windows of `A`; `profile.P[j]` is the distance between the window of `T` starting at `j` and its nearest neighbor in `A`, and `profile.I[j]` is the onset of that neighbor in `A`. The result is in general not symmetric, `matrix_profile(A, T, m) != matrix_profile(T, A, m)`.
 
-Both series must have a length of at least `m`. Integer-valued series are converted to floating point.
+Both series must have a length of at least `m`. Integer-valued series are converted to floating point. Windows with non-finite values and constant windows are treated as described in the self-join method above.
 """
-function matrix_profile(A::AbstractVector{S}, T::AbstractVector{S}, m::Int; showprogress=true) where S <: Number
-    n   = length(A)
+function matrix_profile(A0::AbstractVector{S}, T0::AbstractVector{S}, m::Int; showprogress=true) where S <: Number
+    n   = length(A0)
     l   = n-m+1
     n >= m || throw(ArgumentError("A is shorter than the window length m = $m"))
-    lastlength(T) >= m || throw(ArgumentError("T is shorter than the window length m = $m"))
+    lastlength(T0) >= m || throw(ArgumentError("T is shorter than the window length m = $m"))
+    A, finiteA, constantA = degenerate_windows(A0, m)
+    T, finiteT, constantT = degenerate_windows(T0, m)
+    specialT = findall(.!finiteT .| constantT)
+    degenerate = !isempty(specialT) || !all(finiteA) || any(constantA)
     lT   = lastlength(T)-m+1
     μT,σT  = sliding_mean_std(T, m)
     μA,σA  = sliding_mean_std(A, m)
@@ -92,6 +142,7 @@ function matrix_profile(A::AbstractVector{S}, T::AbstractVector{S}, m::Int; show
     @assert length(QT) == lT
     QT₀  = copy(QT)
     D    = distance_profile(ZEuclidean(), QT, μA, σA, μT, σT, m)
+    degenerate && correct_degenerate!(D, finiteA[1], constantA[1], finiteT, constantT, specialT, m, 1:0)
     P    = copy(D)
     I    = ones(Int, lT)
     prog = Progress((l - 1) ÷ 5, dt=1, desc="Matrix profile", barglyphs = BarGlyphs("[=> ]"), color=:blue)
@@ -101,10 +152,11 @@ function matrix_profile(A::AbstractVector{S}, T::AbstractVector{S}, m::Int; show
         end
         QT[1] = dot(getwindow(A, m, i), getwindow(T,m,1)) #QT₀[i]
         distance_profile!(D, ZEuclidean(), QT, μA, σA, μT, σT, m, i)
+        degenerate && correct_degenerate!(D, finiteA[i], constantA[i], finiteT, constantT, specialT, m, 1:0)
         update_min!(P, I, D, i, false)
         showprogress && i % 5 == 0 && next!(prog)
     end
-    Profile(T, P, I, m, A)
+    Profile(T0, P, I, m, A0)
 end
 
 matrix_profile(T::AbstractVector{<:Integer}, m::Int; kwargs...) =
